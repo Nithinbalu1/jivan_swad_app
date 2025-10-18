@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:511570380831:android:efb213a2401d7c9749ed2a",
+        "android_client_info": {
+          "package_name": "com.example.jivan_swad"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAVcwwHZyroT4XqOpygPx-mJHxPupXevDA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:511570380831:android:f980511825f872c849ed2a",
         "android_client_info": {
           "package_name": "com.example.jivan_swad_app"
