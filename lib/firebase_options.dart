@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'jivan-swad-app.firebasestorage.app',
     measurementId: 'G-80406YHPHR',
   );
+
 }

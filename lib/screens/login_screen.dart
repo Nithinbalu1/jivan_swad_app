@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'admin_home.dart';
@@ -38,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 12),
             if (!isLogin)
               DropdownButtonFormField<String>(
-                value: role,
+                initialValue: role,
                 items: const [
                   DropdownMenuItem(value: 'customer', child: Text('Customer')),
                   DropdownMenuItem(value: 'admin', child: Text('Admin')),

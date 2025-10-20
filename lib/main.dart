@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // generated automatically
-import 'screens/login_screen.dart'; // will create this next
+import 'firebase_options.dart';
+import 'splash_screen.dart';
+import 'auth_test.dart';
+import 'admin_dashboard.dart';
+import 'customer_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
@@ -18,12 +19,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Jivan Swad Tea Co',
-      theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF4CAF50),
-        useMaterial3: true,
-      ),
-      home: const LoginScreen(),
+      initialRoute: '/splash',
+      routes: {
+        '/splash': (context) => const SplashScreen(),
+        '/login': (context) => const AuthTestPage(),
+        '/admin': (context) => const AdminDashboard(),
+        '/customer': (context) => const CustomerDashboard(),
+      },
     );
   }
 }
