@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:jivan_swad_app/provider/manage_orders.dart';
 import 'package:jivan_swad_app/screens/login_screen.dart';
-import 'package:jivan_swad_app/screens/admin_home.dart';
+import 'package:jivan_swad_app/provider/provider_home.dart';
 import 'package:jivan_swad_app/screens/customer_home.dart';
 import 'package:jivan_swad_app/services/auth_service.dart';
 
@@ -64,7 +64,8 @@ class AuthGate extends StatelessWidget {
 
               final role = roleSnap.data;
               if (role == 'admin') {
-                return const AdminHome();
+                // Admins use the provider dashboard
+                return const ProviderHome();
               }
               return const CustomerHome();
             },

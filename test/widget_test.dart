@@ -41,7 +41,8 @@ class _CounterTestWidgetState extends State<_CounterTestWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Counter Test')),
-      body: Center(child: Text('$_count', style: const TextStyle(fontSize: 24))),
+      body:
+          Center(child: Text('$_count', style: const TextStyle(fontSize: 24))),
       floatingActionButton: FloatingActionButton(
         onPressed: () => setState(() => _count++),
         child: const Icon(Icons.add),

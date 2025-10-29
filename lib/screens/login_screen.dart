@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'admin_home.dart';
+import 'package:jivan_swad_app/provider/provider_home.dart';
 import 'customer_home.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -71,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => userRole == 'admin'
-                          ? const AdminHome()
+                          ? const ProviderHome()
                           : const CustomerHome(),
                     ),
                   );

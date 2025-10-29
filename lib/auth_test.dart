@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:jivan_swad_app/screens/admin_home.dart';
+import 'package:jivan_swad_app/provider/provider_home.dart';
 import 'package:jivan_swad_app/screens/customer_home.dart';
 
 class AuthTest extends StatefulWidget {
@@ -48,7 +48,7 @@ class _AuthTestState extends State<AuthTest> {
       if (role == 'admin') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const AdminHome()),
+          MaterialPageRoute(builder: (_) => const ProviderHome()),
         );
       } else if (role == 'customer') {
         Navigator.pushReplacement(
