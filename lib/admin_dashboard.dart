@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:jivan_swad_app/provider/manage_orders.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -14,7 +15,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String message = "";
 
-  // 🔹 Function to add data to Firestore
+  // 🔹 Add a record to adminData collection
   Future<void> addAdminData() async {
     try {
       await _firestore.collection('adminData').add({
@@ -56,6 +57,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 16),
 
+            // 🔹 Button to add data to adminData
             ElevatedButton(
               onPressed: addAdminData,
               style: ElevatedButton.styleFrom(
@@ -64,14 +66,57 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
               child: const Text("➕ Add Data to adminData"),
             ),
+
+            const SizedBox(height: 10),
+
+            // 🔹 NEW: Button to add sample order
+            ElevatedButton(
+              onPressed: () async {
+                await FirebaseFirestore.instance.collection('orders').add({
+                  'customerName': 'Sample User',
+                  'total': 19.99,
+                  'status': 'pending',
+                  'createdAt': FieldValue.serverTimestamp(),
+                  'items': [
+                    {'name': 'Masala Tea', 'qty': 1},
+                    {'name': 'Cold Coffee', 'qty': 2},
+                  ],
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('✅ Sample order added!')),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Add Sample Order'),
+            ),
+
             const SizedBox(height: 10),
             Text(message, style: const TextStyle(color: Colors.black87)),
+            const SizedBox(height: 10),
+
+            // 🔹 Navigation to Manage Orders screen
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.receipt_long),
+                title: const Text('Manage Orders'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const ManageOrdersScreen()),
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 10),
 
             const Text("📄 Admin Data", style: TextStyle(fontSize: 18)),
             const SizedBox(height: 10),
 
-            // 🔹 Realtime Firestore stream
+            // 🔹 Firestore StreamBuilder
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: adminData.orderBy('time', descending: true).snapshots(),

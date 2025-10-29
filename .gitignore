@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Do not commit Firebase Android config (keep local copies only)
+android/app/google-services.json
+
+# Optional: ignore duplicate root-level dashboards if present
+lib/admin_dashboard.dart
+lib/customer_dashboard.dart
