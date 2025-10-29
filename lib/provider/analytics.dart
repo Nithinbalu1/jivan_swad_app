@@ -26,12 +26,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final Map<String, int> counts = {};
     for (var doc in ordersSnap.docs) {
       final data = doc.data();
-      r += (data['total'] ?? 0).toDouble();
-      final items = List.from(data['items'] ?? []);
+      // Safely parse total (could be int/double/null)
+      final totalVal = data['total'];
+      if (totalVal is num) {
+        r += totalVal.toDouble();
+      } else if (totalVal is String) {
+        r += double.tryParse(totalVal) ?? 0.0;
+      }
+
+      // Items in orders may be stored as a List or as a Map; handle both.
+      final itemsRaw = data['items'];
+      List items = [];
+      if (itemsRaw is Iterable) {
+        items = List.from(itemsRaw);
+      } else if (itemsRaw is Map) {
+        // If items stored as a map, take its values
+        items = List.from((itemsRaw as Map).values);
+      }
+
       for (var it in items) {
-        final id = it['teaId'] ?? it['id'] ?? it['name'];
-        final qty = (it['qty'] ?? 0) as int;
-        counts[id] = (counts[id] ?? 0) + qty;
+        if (it is! Map) continue;
+        final id = it['teaId'] ?? it['id'] ?? it['name'] ?? 'unknown';
+        final qtyVal = it['qty'] ?? 0;
+        final qty = int.tryParse(qtyVal.toString()) ?? 0;
+        counts[id.toString()] = (counts[id.toString()] ?? 0) + qty;
       }
     }
     setState(() {
