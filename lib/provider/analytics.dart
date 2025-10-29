@@ -21,7 +21,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Future<void> _loadAnalytics() async {
     setState(() => loading = true);
-    final ordersSnap = await FirebaseFirestore.instance.collection('orders').get();
+    final ordersSnap =
+        await FirebaseFirestore.instance.collection('orders').get();
     double r = 0.0;
     final Map<String, int> counts = {};
     for (var doc in ordersSnap.docs) {
@@ -41,7 +42,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         items = List.from(itemsRaw);
       } else if (itemsRaw is Map) {
         // If items stored as a map, take its values
-        items = List.from((itemsRaw as Map).values);
+        items = List.from(itemsRaw.values);
       }
 
       for (var it in items) {
@@ -61,7 +62,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sorted = teaCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = teaCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     return Scaffold(
       appBar: AppBar(title: const Text('Analytics')),
       body: Padding(
@@ -71,9 +73,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Total revenue: \$${revenue.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Total revenue: \$${revenue.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-                  const Text('Top teas (by qty sold):', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Top teas (by qty sold):',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   if (sorted.isEmpty)
                     const Text('No sales yet.')

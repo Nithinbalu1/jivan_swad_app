@@ -18,10 +18,15 @@ class ManageOrdersScreen extends StatelessWidget {
 
   // ✅ Removed the extra import line
   Future<void> _updateStatus(String id, OrderStatus s) async {
-    await FirebaseFirestore.instance
-        .collection('orders')
-        .doc(id)
-        .update({'status': orderStatusToString(s)});
+    try {
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(id)
+          .update({'status': orderStatusToString(s)});
+    } catch (e) {
+      // Surface failure to caller via rethrow so UI can show a message
+      throw Exception('Failed to update order status: $e');
+    }
   }
 
   void _showDetails(BuildContext context, DocumentSnapshot d) {
@@ -34,12 +39,8 @@ class ManageOrdersScreen extends StatelessWidget {
           children: [
             Text('Customer: ${d['customerName'] ?? 'N/A'}'),
             const SizedBox(height: 8),
-            ...(List.from(d['items'] ?? [])).map(
-              (it) => ListTile(
-                title: Text(it['name'] ?? ''),
-                subtitle: Text('Qty: ${it['qty']}'),
-              ),
-            ),
+            // Handle items stored as List or Map
+            ..._buildItemListTiles(d['items']),
             const Divider(),
             Text('Total: \$${(d['total'] ?? 0).toString()}'),
           ],
@@ -54,6 +55,25 @@ class ManageOrdersScreen extends StatelessWidget {
     );
   }
 
+  // Helper to build list tiles for order items that may be stored as a List or a Map
+  List<Widget> _buildItemListTiles(dynamic itemsRaw) {
+    final List items = [];
+    if (itemsRaw is Iterable) {
+      items.addAll(itemsRaw);
+    } else if (itemsRaw is Map) {
+      items.addAll(itemsRaw.values);
+    }
+
+    return items.where((it) => it is Map).map<Widget>((it) {
+      final name = it['name'] ?? it['title'] ?? '';
+      final qty = it['qty'] ?? it['quantity'] ?? 0;
+      return ListTile(
+        title: Text(name.toString()),
+        subtitle: Text('Qty: ${qty.toString()}'),
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final ordersStream = FirebaseFirestore.instance
@@ -66,6 +86,32 @@ class ManageOrdersScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: ordersStream,
         builder: (context, snap) {
+          if (snap.hasError) {
+            final err = snap.error;
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Error loading orders: $err'),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Recreate this screen to retry the stream
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ManageOrdersScreen()),
+                        );
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -90,7 +136,24 @@ class ManageOrdersScreen extends StatelessWidget {
                     'Total: \$${(d['total'] ?? 0).toString()} • Status: ${status.name}',
                   ),
                   trailing: PopupMenuButton<OrderStatus>(
-                    onSelected: (s) => _updateStatus(d.id, s),
+                    onSelected: (s) async {
+                      try {
+                        await _updateStatus(d.id, s);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Order status updated')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('Failed to update status: $e')),
+                          );
+                        }
+                      }
+                    },
                     itemBuilder: (_) => OrderStatus.values
                         .map((s) => PopupMenuItem(
                               value: s,

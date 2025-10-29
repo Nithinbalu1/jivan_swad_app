@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'package:jivan_swad_app/provider/provider_home.dart';
-import 'customer_home.dart';
+import 'customer_home_new.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

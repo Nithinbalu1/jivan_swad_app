@@ -1,15 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:jivan_swad_app/firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:jivan_swad_app/provider/manage_orders.dart';
 import 'package:jivan_swad_app/screens/login_screen.dart';
 import 'package:jivan_swad_app/provider/provider_home.dart';
-import 'package:jivan_swad_app/screens/customer_home.dart';
+import 'package:jivan_swad_app/screens/customer_home_new.dart';
 import 'package:jivan_swad_app/services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // If running in debug mode, attempt to connect to local Firebase emulators
+  // Developers: start the emulators with `firebase emulators:start` before running the app.
+  if (kDebugMode) {
+    try {
+      // Firestore emulator default host/port
+      FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+      // Auth emulator default host/port
+      FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+      // ignore: avoid_print
+      print(
+          'Using Firebase emulators: Firestore@localhost:8080 Auth@localhost:9099');
+    } catch (e) {
+      // ignore: avoid_print
+      print('Failed to configure Firebase emulators: $e');
+    }
+  }
   runApp(const MyApp());
 }
 
