@@ -62,11 +62,19 @@ class AuthGate extends StatelessWidget {
                 );
               }
 
-              final role = roleSnap.data;
+              final role = roleSnap.data?.toString().toLowerCase();
+              // Debug: print role to help diagnose routing issues
+              // (This can be removed after verification)
+              // ignore: avoid_print
+              print('AuthGate: resolved role="$role"');
               if (role == 'admin') {
                 // Admins use the provider dashboard
+                // ignore: avoid_print
+                print('AuthGate: routing to ProviderHome');
                 return const ProviderHome();
               }
+              // ignore: avoid_print
+              print('AuthGate: routing to CustomerHome');
               return const CustomerHome();
             },
           );
