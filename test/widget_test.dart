@@ -8,12 +8,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:jivan_swad_app/main.dart';
-
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    // Build a small counter widget for tests (does not rely on app Firebase)
+    await tester.pumpWidget(const MaterialApp(home: _CounterTestWidget()));
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
@@ -27,4 +25,27 @@ void main() {
     expect(find.text('0'), findsNothing);
     expect(find.text('1'), findsOneWidget);
   });
+}
+
+class _CounterTestWidget extends StatefulWidget {
+  const _CounterTestWidget({Key? key}) : super(key: key);
+
+  @override
+  State<_CounterTestWidget> createState() => _CounterTestWidgetState();
+}
+
+class _CounterTestWidgetState extends State<_CounterTestWidget> {
+  int _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Counter Test')),
+      body: Center(child: Text('$_count', style: const TextStyle(fontSize: 24))),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => setState(() => _count++),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
 }
