@@ -15,9 +15,15 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  // If running in debug mode, attempt to connect to local Firebase emulators
-  // Developers: start the emulators with `firebase emulators:start` before running the app.
-  if (kDebugMode) {
+  // Emulator wiring is opt-in. Set the dart-define flag when running to enable:
+  // flutter run -d chrome --dart-define=USE_FIREBASE_EMULATORS=true
+  const bool kUseFirebaseEmulators =
+      bool.fromEnvironment('USE_FIREBASE_EMULATORS', defaultValue: false);
+
+  // If running in debug mode AND the opt-in flag is set, attempt to connect to
+  // local Firebase emulators. Developers: start the emulators with
+  // `firebase emulators:start` before running the app with the flag.
+  if (kDebugMode && kUseFirebaseEmulators) {
     try {
       // Firestore emulator default host/port
       FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);

@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/payment_simulator.dart';
+import 'ai_assistant.dart';
 import 'login_screen.dart';
 
 class CustomerHome extends StatefulWidget {
@@ -64,8 +66,8 @@ class _CustomerHomeState extends State<CustomerHome> {
         // Demo/simulated mode: do not write to Firestore
         if (!mounted) return;
         setState(() => _cart.clear());
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Demo order placed (not sent to server)')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('order placed ')));
       } else {
         await _db.collection('orders').add({
           'customerName': user?.email ?? 'Guest',
@@ -96,6 +98,32 @@ class _CustomerHomeState extends State<CustomerHome> {
       appBar: AppBar(
         title: const Text('Customer Home'),
         actions: [
+          IconButton(
+            tooltip: 'Assistant',
+            onPressed: () async {
+              // Try to fetch items for recommendations; fall back to demo
+              List<Map<String, dynamic>> items = [];
+              try {
+                final docs = await _db.collection('teas').get();
+                for (var d in docs.docs) {
+                  final m = Map<String, dynamic>.from(d.data() as Map);
+                  m['id'] = d.id;
+                  items.add(m);
+                }
+              } catch (_) {
+                // ignore and let assistant use demo items
+              }
+
+              if (!mounted) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        AIAssistantScreen(items: items, cart: _cart)),
+              );
+            },
+            icon: const Icon(Icons.smart_toy_outlined),
+          ),
           IconButton(
             onPressed: () async {
               await AuthService.logout();
@@ -170,8 +198,7 @@ class _CustomerHomeState extends State<CustomerHome> {
                       children: [
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(
-                              'Running in demo mode — Firestore permissions denied',
+                          child: Text('Running Sample for demo',
                               style: TextStyle(color: Colors.orange)),
                         ),
                         Expanded(
@@ -408,9 +435,36 @@ class _CustomerHomeState extends State<CustomerHome> {
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Close')),
                 ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(context);
-                      _placeOrder(teaData, simulate: demoMode);
+
+                      final total = _calculateTotal(teaData);
+
+                      // Run simulated payment first
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+
+                      final result =
+                          await PaymentSimulator.processPayment(total);
+
+                      if (!mounted) return;
+                      Navigator.pop(context); // remove progress
+
+                      if (!result.success) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content:
+                                Text('Payment failed: ${result.message}')));
+                        return;
+                      }
+
+                      // Payment OK — proceed with order. If demoMode is true we still
+                      // simulate the order flow (no Firestore write).
+                      await _placeOrder(teaData, simulate: demoMode);
                     },
                     child: const Text('Place Order')),
               ],
