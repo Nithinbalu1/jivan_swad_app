@@ -8,7 +8,7 @@ class FaqScreen extends StatefulWidget {
 }
 
 class _FaqScreenState extends State<FaqScreen> {
-  // Data: questions + answers
+
   final List<_FaqItem> _items = [
     _FaqItem(
       q: "What’s the difference between loose-leaf tea and tea bags?",
@@ -46,7 +46,7 @@ class _FaqScreenState extends State<FaqScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bannerBg = const Color(0xFFF4EAE3); // soft beige like your screenshot
+    final bannerBg = const Color(0xFFF4EAE3); // soft beige 
     final tileBg = const Color(0xFFFAF6F3);   // very light card background
     final divider = const Color(0xFFEFE7E2);
 
@@ -84,8 +84,7 @@ class _FaqScreenState extends State<FaqScreen> {
                   ],
                 ),
               ),
-
-              // FAQ List
+              
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                 child: Column(
@@ -105,7 +104,7 @@ class _FaqScreenState extends State<FaqScreen> {
                         ),
                         if (i != _items.length - 1)
                           Container(
-                            height: 14, // spacing that looks like the screenshot’s gap
+                            height: 14, 
                             color: Colors.transparent,
                           ),
                       ],
@@ -155,7 +154,7 @@ class _FaqTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row: question + +
+              
               Row(
                 children: [
                   Expanded(
@@ -168,9 +167,9 @@ class _FaqTile extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Plus icon (changes to minus when expanded)
+                 
                   AnimatedRotation(
-                    turns: expanded ? 0.125 : 0, // rotate + to look like × when open
+                    turns: expanded ? 0.125 : 0, 
                     duration: const Duration(milliseconds: 150),
                     child: Icon(
                       expanded ? Icons.remove : Icons.add,
@@ -181,7 +180,6 @@ class _FaqTile extends StatelessWidget {
                 ],
               ),
 
-              // Answer
               AnimatedCrossFade(
                 firstChild: const SizedBox.shrink(),
                 secondChild: Padding(
