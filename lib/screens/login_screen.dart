@@ -67,10 +67,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   final userRole = await AuthService.getRole();
                   if (!mounted) return;
+                  final normalized = userRole?.toString().toLowerCase().trim();
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => userRole == 'admin'
+                      builder: (_) => normalized == 'admin'
                           ? const ProviderHome()
                           : const CustomerHome(),
                     ),

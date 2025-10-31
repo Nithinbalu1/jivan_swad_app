@@ -19,7 +19,7 @@ class AuthService {
     // Store role in Firestore
     await _db.collection('users').doc(credential.user!.uid).set({
       'email': email,
-      'role': role,
+      'role': role.toLowerCase(),
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -39,8 +39,28 @@ class AuthService {
   static Future<String?> getRole() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return null;
-    final doc = await _db.collection('users').doc(uid).get();
-    return doc.data()?['role'];
+    final docRef = _db.collection('users').doc(uid);
+    try {
+      final doc = await docRef.get();
+      final data = doc.data();
+      if (data == null) return null;
+
+      // Prefer explicit 'role' string field
+      final roleField = data['role'];
+      if (roleField != null) {
+        return roleField.toString();
+      }
+
+      // Backward-compat: some setups used a boolean 'isAdmin'
+      final isAdmin = data['isAdmin'];
+      if (isAdmin is bool && isAdmin) return 'admin';
+
+      return null;
+    } catch (e) {
+      // ignore: avoid_print
+      print('AuthService.getRole: failed to read user doc: $e');
+      return null;
+    }
   }
 
   /// Logout

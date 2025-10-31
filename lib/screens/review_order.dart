@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/payment_stimulator.dart';
+import '../services/payment_simulator.dart';
 import 'payment_method.dart';
 
 class OrderItem {
@@ -50,8 +50,8 @@ class ReviewOrderScreen extends StatefulWidget {
 class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
   static const double _njTaxRate = 0.06625; // NJ 6.625%
 
-  final _sim = PaymentSimulator();
-
+  // Use the static PaymentSimulator.processPayment(dollars) for simulated
+  // payment processing.
   String? _paymentLabel;
   Map<String, String>? _billingSelected;
 
@@ -89,21 +89,19 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
   Future<void> _placeOrder(int totalCents) async {
     setState(() => _placing = true);
     try {
-      final res = await _sim.charge(
-        amountCents: totalCents,
-        orderId: DateTime.now().millisecondsSinceEpoch.toString(),
-      );
+      // Our simulator uses dollars; convert cents -> dollars
+      final amountDollars = totalCents / 100.0;
+      final res = await PaymentSimulator.processPayment(amountDollars);
 
       if (!mounted) return;
 
-      final msg = (res.outcome == PaymentOutcome.authorized)
-          ? 'Authorized • Auth ${res.authCode}'
-          : 'Declined • Try another method';
+      final msg = res.success
+          ? 'Authorized • TXN ${res.transactionId}'
+          : 'Declined • ${res.message}';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
-      if (res.outcome == PaymentOutcome.authorized) {
+      if (res.success) {
         // Optionally navigate to success screen
-        // Navigator.pushReplacementNamed(context, '/order_placed');
       }
     } finally {
       if (mounted) setState(() => _placing = false);
@@ -193,8 +191,7 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
             trailing: const Icon(Icons.chevron_right),
             subtitle: (_paymentLabel == null)
                 ? Row(children: const [
-                    Icon(Icons.warning_amber,
-                        color: Colors.orange, size: 18),
+                    Icon(Icons.warning_amber, color: Colors.orange, size: 18),
                     SizedBox(width: 6),
                     Text('Payment is required',
                         style: TextStyle(color: Colors.orange)),
@@ -302,4 +299,3 @@ Widget _kv(String k, String v, {bool bold = false}) {
     ),
   );
 }
-
