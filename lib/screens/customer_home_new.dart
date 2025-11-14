@@ -101,6 +101,10 @@ class _CustomerHomeState extends State<CustomerHome> {
           IconButton(
             tooltip: 'Assistant',
             onPressed: () async {
+              // Capture navigator before async work to avoid using BuildContext
+              // across an async gap (silences analyzer warning).
+              final navigator = Navigator.of(context);
+
               // Try to fetch items for recommendations; fall back to demo
               List<Map<String, dynamic>> items = [];
               try {
@@ -115,8 +119,7 @@ class _CustomerHomeState extends State<CustomerHome> {
               }
 
               if (!mounted) return;
-              Navigator.push(
-                context,
+              navigator.push(
                 MaterialPageRoute(
                     builder: (_) =>
                         AIAssistantScreen(items: items, cart: _cart)),
@@ -126,13 +129,12 @@ class _CustomerHomeState extends State<CustomerHome> {
           ),
           IconButton(
             onPressed: () async {
+              final navigator = Navigator.of(context);
               await AuthService.logout();
-              if (context.mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              }
+              if (!mounted) return;
+              navigator.pushReplacement(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
             },
             icon: const Icon(Icons.logout),
           )
@@ -153,8 +155,9 @@ class _CustomerHomeState extends State<CustomerHome> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: teasStream,
                 builder: (context, snap) {
-                  if (snap.connectionState == ConnectionState.waiting)
+                  if (snap.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
+                  }
 
                   // If there's a permission error, offer a small demo list (A/B/C)
                   final errString = snap.error?.toString() ?? '';
@@ -198,7 +201,7 @@ class _CustomerHomeState extends State<CustomerHome> {
                       children: [
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text('Running Sample for demo',
+                          child: Text('Menu',
                               style: TextStyle(color: Colors.orange)),
                         ),
                         Expanded(
@@ -265,13 +268,114 @@ class _CustomerHomeState extends State<CustomerHome> {
                     );
                   }
 
-                  if (snap.hasError)
+                  if (snap.hasError) {
                     return Center(
                         child: Text('Error loading items: ${snap.error}'));
+                  }
                   final docs = snap.data?.docs ?? [];
-                  if (docs.isEmpty)
-                    return const Center(
-                        child: Text('No items available right now.'));
+                  if (docs.isEmpty) {
+                    // If there are no items in Firestore, show a small demo set
+                    // so the customer UI isn't empty during local/dev runs.
+                    final demoDocs = [
+                      {
+                        'id': 'a',
+                        'name': 'A Tea',
+                        'price': 49.0,
+                        'description': 'Sample A tea (demo)'
+                      },
+                      {
+                        'id': 'b',
+                        'name': 'B Tea',
+                        'price': 59.0,
+                        'description': 'Sample B tea (demo)'
+                      },
+                      {
+                        'id': 'c',
+                        'name': 'C Tea',
+                        'price': 69.0,
+                        'description': 'Sample C tea (demo)'
+                      },
+                    ];
+
+                    final teaData = <String, Map<String, dynamic>>{};
+                    for (var d in demoDocs) {
+                      teaData[d['id'] as String] = {
+                        'name': d['name'],
+                        'price': d['price'],
+                        'description': d['description'],
+                      };
+                    }
+
+                    return Column(
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text('Menu items',
+                              style: TextStyle(color: Colors.orange)),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: demoDocs.length,
+                            itemBuilder: (context, i) {
+                              final data = demoDocs[i];
+                              final id = data['id'] as String;
+                              final price = (data['price'] as num).toDouble();
+                              final inCart = _cart[id] ?? 0;
+                              return Card(
+                                child: ListTile(
+                                  leading: const CircleAvatar(
+                                      child: Icon(Icons.local_cafe)),
+                                  title: Text(data['name'] as String),
+                                  subtitle: Text(
+                                      '\$${price.toStringAsFixed(2)} (demo)'),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (inCart > 0) Text('x$inCart'),
+                                      IconButton(
+                                        icon:
+                                            const Icon(Icons.add_shopping_cart),
+                                        onPressed: () => _addToCart(id),
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () => showDialog(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      title: Text(data['name'] as String),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(data['description'] as String),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                              'Price: \$${price.toStringAsFixed(2)}'),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text('Close')),
+                                        ElevatedButton(
+                                            onPressed: () {
+                                              _addToCart(id);
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text('Add')),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  }
 
                   // Build a map of tea data for quick lookup
                   final teaData = <String, Map<String, dynamic>>{};
@@ -347,9 +451,13 @@ class _CustomerHomeState extends State<CustomerHome> {
         label: Text('Cart (${_cart.values.fold<int>(0, (a, b) => a + b)})'),
         icon: const Icon(Icons.shopping_cart),
         onPressed: () async {
-          // Try to build teaData map from Firestore; if permission denied, fall back to demo items
+          // Build tea data; fall back to demo items if permission denied.
+          final navigator = Navigator.of(context);
+          final scaffold = ScaffoldMessenger.of(context);
+
           Map<String, Map<String, dynamic>> teaData = {};
           bool demoMode = false;
+
           try {
             final docs = await _db.collection('teas').get();
             for (var d in docs.docs) {
@@ -388,88 +496,94 @@ class _CustomerHomeState extends State<CustomerHome> {
                 };
               }
             } else {
-              // other error: show it
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
+              scaffold.showSnackBar(
                   SnackBar(content: Text('Failed to load items for cart: $e')));
               return;
             }
           }
 
-          showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('Your Cart'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_cart.isEmpty) const Text('Your cart is empty.'),
-                  ..._cart.entries.map((e) {
-                    final tea = teaData[e.key];
-                    final name = tea?['name'] ?? 'Tea';
-                    final price = (tea?['price'] ?? 0).toDouble();
-                    return ListTile(
-                      title: Text(name.toString()),
-                      subtitle: Text(
-                          'Qty: ${e.value} • \$${(price * e.value).toStringAsFixed(2)}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                              icon: const Icon(Icons.remove),
-                              onPressed: () {
-                                _removeFromCart(e.key);
-                                Navigator.pop(context);
-                              }),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  const SizedBox(height: 8),
-                  Text(
-                      'Total: \$${_calculateTotal(teaData).toStringAsFixed(2)}'),
-                ],
+          // Show cart dialog using the captured navigator so we don't use the
+          // widget BuildContext inside an async function (avoids analyzer
+          // use_build_context_synchronously warnings).
+          navigator.push(PageRouteBuilder(
+            opaque: false,
+            pageBuilder: (_, __, ___) => Center(
+              child: Material(
+                type: MaterialType.transparency,
+                child: AlertDialog(
+                  title: const Text('Your Cart'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_cart.isEmpty) const Text('Your cart is empty.'),
+                      ..._cart.entries.map((e) {
+                        final tea = teaData[e.key];
+                        final name = tea?['name'] ?? 'Tea';
+                        final price = (tea?['price'] ?? 0).toDouble();
+                        return ListTile(
+                          title: Text(name.toString()),
+                          subtitle: Text(
+                              'Qty: ${e.value} • \$${(price * e.value).toStringAsFixed(2)}'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                  icon: const Icon(Icons.remove),
+                                  onPressed: () {
+                                    _removeFromCart(e.key);
+                                    navigator.pop();
+                                  }),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      Text(
+                          'Total: \$${_calculateTotal(teaData).toStringAsFixed(2)}'),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                        onPressed: () => navigator.pop(),
+                        child: const Text('Close')),
+                    ElevatedButton(
+                        onPressed: () async {
+                          // close the cart dialog
+                          navigator.pop();
+
+                          final total = _calculateTotal(teaData);
+
+                          // show progress using the captured navigator (avoid using
+                          // the widget BuildContext across the async gap)
+                          navigator.push(PageRouteBuilder(
+                            opaque: false,
+                            pageBuilder: (_, __, ___) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ));
+
+                          final result =
+                              await PaymentSimulator.processPayment(total);
+
+                          if (!mounted) return;
+                          navigator.pop(); // remove progress route
+
+                          if (!result.success) {
+                            scaffold.showSnackBar(SnackBar(
+                                content:
+                                    Text('Payment failed: ${result.message}')));
+                            return;
+                          }
+
+                          await _placeOrder(teaData, simulate: demoMode);
+                        },
+                        child: const Text('Place Order')),
+                  ],
+                ),
               ),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Close')),
-                ElevatedButton(
-                    onPressed: () async {
-                      Navigator.pop(context);
-
-                      final total = _calculateTotal(teaData);
-
-                      // Run simulated payment first
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (_) => const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-
-                      final result =
-                          await PaymentSimulator.processPayment(total);
-
-                      if (!mounted) return;
-                      Navigator.pop(context); // remove progress
-
-                      if (!result.success) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content:
-                                Text('Payment failed: ${result.message}')));
-                        return;
-                      }
-
-                      // Payment OK — proceed with order. If demoMode is true we still
-                      // simulate the order flow (no Firestore write).
-                      await _placeOrder(teaData, simulate: demoMode);
-                    },
-                    child: const Text('Place Order')),
-              ],
             ),
-          );
+          ));
         },
       ),
     );

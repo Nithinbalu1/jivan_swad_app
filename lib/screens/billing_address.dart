@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Minimal billing address editor used by the payment flow.
-/// Returns a Map<String,String> with common keys when the user saves.
+/// Returns a map (String -> String) with common keys when the user saves.
 class BillingAddressScreen extends StatefulWidget {
   final Map<String, String>? initial;
   const BillingAddressScreen({super.key, this.initial});

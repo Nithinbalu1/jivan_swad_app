@@ -39,23 +39,29 @@ class _AuthTestState extends State<AuthTest> {
       // 🔹 Fetch user role from Firestore
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
 
+      if (!mounted) return;
+
       if (!userDoc.exists) {
+        if (!mounted) return;
         setState(() => message = "⚠️ User document not found.");
         return;
       }
 
       final role = (userDoc['role'] ?? '').toString().toLowerCase();
       if (role == 'admin') {
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const ProviderHome()),
         );
       } else if (role == 'customer') {
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const CustomerHome()),
         );
       } else {
+        if (!mounted) return;
         setState(() => message = "⚠️ Unknown user role: $role");
       }
     } catch (e) {

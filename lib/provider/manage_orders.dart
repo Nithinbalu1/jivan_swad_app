@@ -64,7 +64,7 @@ class ManageOrdersScreen extends StatelessWidget {
       items.addAll(itemsRaw.values);
     }
 
-    return items.where((it) => it is Map).map<Widget>((it) {
+    return items.whereType<Map>().map<Widget>((it) {
       final name = it['name'] ?? it['title'] ?? '';
       final qty = it['qty'] ?? it['quantity'] ?? 0;
       return ListTile(

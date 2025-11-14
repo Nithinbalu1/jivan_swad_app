@@ -32,6 +32,9 @@ class _SplashScreenState extends State<SplashScreen> {
     } else {
       try {
         final doc = await _firestore.collection('users').doc(user.uid).get();
+
+        if (!mounted) return;
+
         final role = doc['role'];
 
         if (role == 'Admin') {

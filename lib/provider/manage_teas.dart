@@ -9,14 +9,20 @@ class ManageTeasScreen extends StatefulWidget {
 }
 
 class _ManageTeasScreenState extends State<ManageTeasScreen> {
-  final CollectionReference teasRef = FirebaseFirestore.instance.collection('teas');
+  final CollectionReference teasRef =
+      FirebaseFirestore.instance.collection('teas');
 
   Future<void> _showEditDialog({DocumentSnapshot? doc}) async {
-    final nameCtrl = TextEditingController(text: doc != null ? doc['name'] ?? '' : '');
-    final priceCtrl = TextEditingController(text: doc != null ? (doc['price']?.toString() ?? '') : '');
-    final stockCtrl = TextEditingController(text: doc != null ? (doc['stock']?.toString() ?? '0') : '0');
-    final descCtrl = TextEditingController(text: doc != null ? doc['description'] ?? '' : '');
-    final imgCtrl = TextEditingController(text: doc != null ? doc['imageUrl'] ?? '' : '');
+    final nameCtrl =
+        TextEditingController(text: doc != null ? doc['name'] ?? '' : '');
+    final priceCtrl = TextEditingController(
+        text: doc != null ? (doc['price']?.toString() ?? '') : '');
+    final stockCtrl = TextEditingController(
+        text: doc != null ? (doc['stock']?.toString() ?? '0') : '0');
+    final descCtrl = TextEditingController(
+        text: doc != null ? doc['description'] ?? '' : '');
+    final imgCtrl =
+        TextEditingController(text: doc != null ? doc['imageUrl'] ?? '' : '');
 
     final formKey = GlobalKey<FormState>();
 
@@ -30,17 +36,36 @@ class _ManageTeasScreenState extends State<ManageTeasScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextFormField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
-                TextFormField(controller: priceCtrl, decoration: const InputDecoration(labelText: 'Price'), keyboardType: TextInputType.numberWithOptions(decimal: true)),
-                TextFormField(controller: stockCtrl, decoration: const InputDecoration(labelText: 'Stock'), keyboardType: TextInputType.number),
-                TextFormField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description'), maxLines: 2),
-                TextFormField(controller: imgCtrl, decoration: const InputDecoration(labelText: 'Image URL (optional)')),
+                TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null),
+                TextFormField(
+                    controller: priceCtrl,
+                    decoration: const InputDecoration(labelText: 'Price'),
+                    keyboardType:
+                        TextInputType.numberWithOptions(decimal: true)),
+                TextFormField(
+                    controller: stockCtrl,
+                    decoration: const InputDecoration(labelText: 'Stock'),
+                    keyboardType: TextInputType.number),
+                TextFormField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    maxLines: 2),
+                TextFormField(
+                    controller: imgCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Image URL (optional)')),
               ],
             ),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -72,8 +97,12 @@ class _ManageTeasScreenState extends State<ManageTeasScreen> {
         title: const Text('Delete Tea'),
         content: Text('Delete "${doc['name']}" ?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete')),
         ],
       ),
     );
@@ -87,16 +116,20 @@ class _ManageTeasScreenState extends State<ManageTeasScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Manage Teas')),
       floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
         onPressed: () => _showEditDialog(),
         tooltip: 'Add Tea',
+        child: const Icon(Icons.add),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: teasRef.orderBy('name').snapshots(),
         builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final docs = snap.data?.docs ?? [];
-          if (docs.isEmpty) return const Center(child: Text('No teas found. Tap + to add.'));
+          if (docs.isEmpty) {
+            return const Center(child: Text('No teas found. Tap + to add.'));
+          }
           return ListView.builder(
             padding: const EdgeInsets.all(8),
             itemCount: docs.length,
@@ -106,9 +139,12 @@ class _ManageTeasScreenState extends State<ManageTeasScreen> {
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 6),
                 child: ListTile(
-                  leading: img.isNotEmpty ? CircleAvatar(backgroundImage: NetworkImage(img)) : const CircleAvatar(child: Icon(Icons.local_cafe)),
+                  leading: img.isNotEmpty
+                      ? CircleAvatar(backgroundImage: NetworkImage(img))
+                      : const CircleAvatar(child: Icon(Icons.local_cafe)),
                   title: Text(d['name'] ?? ''),
-                  subtitle: Text('\$${(d['price'] ?? 0).toString()} • Stock: ${(d['stock'] ?? 0).toString()}'),
+                  subtitle: Text(
+                      '\$${(d['price'] ?? 0).toString()} • Stock: ${(d['stock'] ?? 0).toString()}'),
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) {
                       if (v == 'edit') _showEditDialog(doc: d);
