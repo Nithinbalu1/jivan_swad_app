@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/payment_simulator.dart';
 import 'ai_assistant.dart';
-import 'login_screen.dart';
+import 'auth_screen.dart';
 
 class CustomerHome extends StatefulWidget {
   const CustomerHome({super.key});
@@ -133,7 +133,7 @@ class _CustomerHomeState extends State<CustomerHome> {
               await AuthService.logout();
               if (!mounted) return;
               navigator.pushReplacement(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                MaterialPageRoute(builder: (_) => const AuthScreen()),
               );
             },
             icon: const Icon(Icons.logout),

@@ -1,7 +1,7 @@
 // lib/provider/provider_home.dart
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import '../screens/login_screen.dart';
+import '../screens/auth_screen.dart';
 import 'manage_teas.dart';
 import 'manage_orders.dart';
 import 'analytics.dart';
@@ -30,7 +30,7 @@ class ProviderHome extends StatelessWidget {
               if (context.mounted) {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  MaterialPageRoute(builder: (_) => const AuthScreen()),
                 );
               }
             },

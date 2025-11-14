@@ -26,7 +26,8 @@ class OrderPlacedScreen extends StatelessWidget {
                   height: 44,
                   child: ElevatedButton(
                     onPressed: () {
-                      // per request: no navigation/logic here
+                      // Navigate back to home screen
+                      Navigator.of(context).popUntil((route) => route.isFirst);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
@@ -43,4 +44,3 @@ class OrderPlacedScreen extends StatelessWidget {
     );
   }
 }
-

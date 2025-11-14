@@ -5,10 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:jivan_swad_app/provider/manage_orders.dart';
-import 'package:jivan_swad_app/screens/login_screen.dart';
+import 'package:jivan_swad_app/screens/auth_screen.dart';
 import 'package:jivan_swad_app/provider/provider_home.dart';
-import 'package:jivan_swad_app/screens/customer_home_new.dart';
+import 'package:jivan_swad_app/screens/customer_home_modern.dart';
 import 'package:jivan_swad_app/services/auth_service.dart';
+import 'package:jivan_swad_app/services/data_seeder.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +38,13 @@ Future<void> main() async {
       print('Failed to configure Firebase emulators: $e');
     }
   }
+
+  // Seed initial data if database is empty (async, don't wait for it)
+  DataSeeder.seedIfEmpty().catchError((e) {
+    print('Warning: Failed to seed data - $e');
+    return false;
+  });
+
   runApp(const MyApp());
 }
 
@@ -54,7 +62,7 @@ class MyApp extends StatelessWidget {
       ),
       home: const AuthGate(),
       routes: {
-        '/login': (context) => const LoginScreen(),
+        '/auth': (context) => const AuthScreen(),
         '/manageOrders': (context) => const ManageOrdersScreen(),
       },
     );
@@ -101,14 +109,14 @@ class AuthGate extends StatelessWidget {
                 return const ProviderHome();
               }
               // ignore: avoid_print
-              print('AuthGate: routing to CustomerHome');
-              return const CustomerHome();
+              print('AuthGate: routing to CustomerHomeModern');
+              return const CustomerHomeModern();
             },
           );
         }
 
-        // Otherwise go to login screen
-        return const LoginScreen();
+        // Otherwise go to auth screen
+        return const AuthScreen();
       },
     );
   }
