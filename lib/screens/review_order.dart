@@ -1,5 +1,6 @@
 // lib/screens/review_order.dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../services/payment_simulator.dart';
 import 'payment_method.dart';
 
@@ -50,12 +51,20 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
   static const double _njTaxRate = 0.06625; // NJ 6.625%
 
   String? _paymentLabel;
+  String? _paymentType;
   // payment related details are stored transiently in the payment screen and
   // we only keep the human-visible payment label here.
 
   bool _placing = false;
 
-  String _money(int cents) => '\$\${(cents / 100).toStringAsFixed(2)}';
+  // Rewards redemption state (points = cents equivalent; 100 pts == $1)
+  bool _useRewards = false;
+  int _appliedPoints = 0;
+
+  String _money(int cents) {
+    final fmt = NumberFormat.simpleCurrency(locale: 'en_US');
+    return fmt.format(cents / 100);
+  }
 
   @override
   void initState() {
@@ -75,15 +84,24 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
     if (!mounted) return;
     setState(() {
       _paymentLabel = payment?['masked'];
+      _paymentType = payment?['type'];
     });
   }
 
-  Future<void> _placeOrder(int subtotalCents) async {
+  Future<void> _placeOrder() async {
     if (_placing) return;
     setState(() => _placing = true);
     try {
-      final amountDollars = subtotalCents / 100.0;
-      final res = await PaymentSimulator.processPayment(amountDollars);
+      final subtotal = widget.args.subtotalCents;
+      final taxCents = (subtotal * _njTaxRate).round();
+      final total = subtotal + taxCents;
+      final netCents = (total - _appliedPoints).clamp(0, 1 << 30);
+
+      final amountDollars = netCents / 100.0;
+
+      final res = await PaymentSimulator.processPayment(amountDollars,
+          method: _paymentType ?? 'card',
+          rewardsApplied: _appliedPoints / 100.0);
 
       if (!mounted) return;
 
@@ -109,11 +127,20 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
     final taxCents = (subtotal * _njTaxRate).round();
     final total = subtotal + taxCents;
 
-    final canPlace = subtotal > 0 && _paymentLabel != null && !_placing;
+    // Cap applied points to available and not more than total
+    final maxRedeemable =
+        args.rewardsPoints < total ? args.rewardsPoints : total;
+    if (!_useRewards) _appliedPoints = 0;
+    if (_appliedPoints > maxRedeemable) _appliedPoints = maxRedeemable;
 
-    final rewardsDollars = (args.rewardsPoints / 100).toStringAsFixed(2);
+    final totalAfterRewards = (total - _appliedPoints).clamp(0, 1 << 30);
+
+    final canPlace = subtotal > 0 &&
+        !_placing &&
+        (_paymentLabel != null || totalAfterRewards == 0);
+
     final rewardsLabel =
-        '\$$rewardsDollars (${args.rewardsPoints} points) available';
+        '${_money(args.rewardsPoints)} (${args.rewardsPoints} points) available';
 
     return Scaffold(
       appBar: AppBar(
@@ -137,15 +164,50 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
           ),
           _Section(
             title: 'Rewards points',
-            child: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(rewardsLabel, style: const TextStyle(fontSize: 16)),
-            ),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(rewardsLabel, style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              Row(children: [
+                Switch(
+                  value: _useRewards,
+                  onChanged: (v) {
+                    setState(() {
+                      _useRewards = v;
+                      if (!v)
+                        _appliedPoints = 0;
+                      else
+                        _appliedPoints = maxRedeemable;
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
+                const Text('Use rewards to pay'),
+              ]),
+              if (_useRewards) ...[
+                const SizedBox(height: 8),
+                Text(
+                    'Applying: ${_money(_appliedPoints)} (${_appliedPoints} points)'),
+                Slider(
+                  min: 0,
+                  max: maxRedeemable.toDouble(),
+                  divisions: maxRedeemable > 0 ? maxRedeemable : 1,
+                  value: _appliedPoints
+                      .toDouble()
+                      .clamp(0.0, maxRedeemable.toDouble()),
+                  onChanged: (v) {
+                    setState(() {
+                      _appliedPoints = v.round();
+                    });
+                  },
+                ),
+              ]
+            ]),
           ),
           _Section(
             title: 'Payment method',
             trailing: const Icon(Icons.chevron_right),
-            subtitle: _paymentLabel == null
+            subtitle: _paymentLabel == null && totalAfterRewards > 0
                 ? Row(children: const [
                     Icon(Icons.warning_amber, color: Colors.orange, size: 18),
                     SizedBox(width: 6),
@@ -154,7 +216,10 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
                   ])
                 : null,
             onTap: _pickPaymentMethod,
-            child: Text(_paymentLabel ?? 'Tap to add a method'),
+            child: Text(_paymentLabel ??
+                (totalAfterRewards == 0
+                    ? 'No payment required (covered by rewards)'
+                    : 'Tap to add a method')),
           ),
           _Section(
             title: 'Order summary',
@@ -164,7 +229,10 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
                   _kv('Subtotal', _money(subtotal)),
                   _kv('Estimated Tax', _money(taxCents)),
                   const SizedBox(height: 8),
-                  _kv('Total', _money(total), bold: true),
+                  if (_useRewards && _appliedPoints > 0)
+                    _kv('Rewards applied', _money(_appliedPoints)),
+                  const SizedBox(height: 4),
+                  _kv('Total', _money(totalAfterRewards), bold: true),
                 ]),
           ),
           const SizedBox(height: 84),
@@ -175,7 +243,7 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
         child: SizedBox(
           height: 48,
           child: ElevatedButton(
-            onPressed: canPlace ? () => _placeOrder(subtotal) : null,
+            onPressed: canPlace ? () => _placeOrder() : null,
             child: _placing
                 ? const SizedBox(
                     width: 22,

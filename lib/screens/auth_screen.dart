@@ -88,10 +88,18 @@ class _AuthScreenState extends State<AuthScreen>
         ),
       );
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-      });
+      final message = e.toString().replaceAll('Exception: ', '');
+      // ignore: avoid_print
+      print('AuthScreen._handleAuth error: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = message;
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
     }
   }
 
@@ -116,7 +124,7 @@ class _AuthScreenState extends State<AuthScreen>
                 children: [
                   // Logo/Brand
                   Icon(
-                    Icons.local_cafe,
+                    Icons.emoji_food_beverage,
                     size: 80,
                     color: primaryColor,
                   ),
@@ -132,7 +140,7 @@ class _AuthScreenState extends State<AuthScreen>
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Fresh Tea & Coffee Delivered',
+                    'Premium Tea Delivered',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,

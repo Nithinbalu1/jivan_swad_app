@@ -16,17 +16,31 @@ class PaymentResult {
 class PaymentSimulator {
   /// Simulate a payment of [amount]. [method] is a free-form string
   /// representing the payment method (e.g., 'card', 'upi', 'wallet').
+  /// [rewardsApplied] is the dollar amount covered by rewards (may be 0).
   ///
   /// Returns a [PaymentResult] after a short delay.
   static Future<PaymentResult> processPayment(double amount,
-      {String method = 'card'}) async {
+      {String method = 'card', double rewardsApplied = 0.0}) async {
+    // If rewards cover the full amount, consider it successful immediately
+    final net = (amount - rewardsApplied).clamp(0.0, double.infinity);
+    if (net <= 0.0) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      final txn = 'REWARDS-${DateTime.now().millisecondsSinceEpoch}';
+      return PaymentResult(true, txn, 'Paid using rewards');
+    }
+
     // Simulate network latency
     await Future.delayed(const Duration(seconds: 2));
 
     // Deterministic-ish randomness seeded from time to avoid always same
     final rnd = Random(DateTime.now().millisecondsSinceEpoch);
-    // Fail ~15% of the time to simulate declined payments
-    final success = rnd.nextDouble() > 0.15;
+
+    // Make success probability dependent on method (cards slightly less likely to fail)
+    double failRate = 0.15;
+    if (method.toLowerCase().contains('wallet')) failRate = 0.08;
+    if (method.toLowerCase().contains('upi')) failRate = 0.12;
+
+    final success = rnd.nextDouble() > failRate;
 
     if (success) {
       final txn = 'SIM-${DateTime.now().millisecondsSinceEpoch}';

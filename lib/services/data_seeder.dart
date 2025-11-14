@@ -8,11 +8,10 @@ class DataSeeder {
   static Future<void> seedTeas() async {
     final teas = [
       {
-        'name': 'Honey & Cinnamon Latte',
+        'name': 'Tulsi Honey Chai',
         'price': 5.25,
-        'description':
-            'Espresso with Soffel Farms honey, dash of cinnamon & steamed milk',
-        'category': 'Coffee',
+        'description': 'A soothing tulsi chai with honey and warming spices',
+        'category': 'Tea',
         'available': true,
       },
       {
@@ -24,18 +23,17 @@ class DataSeeder {
         'available': true,
       },
       {
-        'name': 'Green Tea Latte',
+        'name': 'Matcha Green Tea',
         'price': 5.50,
-        'description': 'Smooth Japanese matcha green tea with steamed milk',
+        'description': 'Smooth matcha with a creamy finish',
         'category': 'Tea',
         'available': true,
       },
       {
-        'name': 'Caramel Latte',
+        'name': 'Lemongrass Green',
         'price': 5.75,
-        'description':
-            'Rich espresso with sweet caramel syrup and steamed milk',
-        'category': 'Coffee',
+        'description': 'Bright lemongrass with refreshing green tea',
+        'category': 'Tea',
         'available': true,
       },
       {
@@ -46,10 +44,10 @@ class DataSeeder {
         'available': true,
       },
       {
-        'name': 'Iced Coffee',
+        'name': 'Iced Hibiscus',
         'price': 4.50,
-        'description': 'Refreshing cold brew coffee served over ice',
-        'category': 'Coffee',
+        'description': 'Tart and floral hibiscus iced tea over ice',
+        'category': 'Tea',
         'available': true,
       },
       {
@@ -60,10 +58,10 @@ class DataSeeder {
         'available': true,
       },
       {
-        'name': 'Cappuccino',
+        'name': 'Earl Grey',
         'price': 5.00,
-        'description': 'Classic Italian espresso with steamed milk foam',
-        'category': 'Coffee',
+        'description': 'Bergamot-infused black tea, a classic favorite',
+        'category': 'Tea',
         'available': true,
       },
       {

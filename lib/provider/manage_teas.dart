@@ -113,6 +113,13 @@ class _ManageTeasScreenState extends State<ManageTeasScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final cross = width > 900
+        ? 4
+        : width > 600
+            ? 3
+            : 2;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Manage Teas')),
       floatingActionButton: FloatingActionButton(
@@ -130,34 +137,93 @@ class _ManageTeasScreenState extends State<ManageTeasScreen> {
           if (docs.isEmpty) {
             return const Center(child: Text('No teas found. Tap + to add.'));
           }
-          return ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: docs.length,
-            itemBuilder: (context, i) {
-              final d = docs[i];
-              final img = (d['imageUrl'] ?? '').toString();
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: ListTile(
-                  leading: img.isNotEmpty
-                      ? CircleAvatar(backgroundImage: NetworkImage(img))
-                      : const CircleAvatar(child: Icon(Icons.local_cafe)),
-                  title: Text(d['name'] ?? ''),
-                  subtitle: Text(
-                      '\$${(d['price'] ?? 0).toString()} • Stock: ${(d['stock'] ?? 0).toString()}'),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (v) {
-                      if (v == 'edit') _showEditDialog(doc: d);
-                      if (v == 'del') _confirmDelete(d);
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      PopupMenuItem(value: 'del', child: Text('Delete')),
-                    ],
+
+          return Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: GridView.builder(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cross,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 3 / 4,
+              ),
+              itemCount: docs.length,
+              itemBuilder: (context, i) {
+                final d = docs[i];
+                final img = (d['imageUrl'] ?? '').toString();
+                final name = (d['name'] ?? '').toString();
+                final price = d['price'] ?? 0;
+                final stock = d['stock'] ?? 0;
+
+                return Card(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  clipBehavior: Clip.hardEdge,
+                  child: InkWell(
+                    onTap: () => _showEditDialog(doc: d),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: img.isNotEmpty
+                              ? Image.network(img,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.emoji_food_beverage,
+                                      size: 48))
+                              : Container(
+                                  color: Colors.grey[100],
+                                  child: const Center(
+                                      child: Icon(Icons.emoji_food_beverage,
+                                          size: 48)),
+                                ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('\$${price.toString()}',
+                                      style:
+                                          const TextStyle(color: Colors.green)),
+                                  Text('Stock: ${stock.toString()}'),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  PopupMenuButton<String>(
+                                    onSelected: (v) {
+                                      if (v == 'edit') _showEditDialog(doc: d);
+                                      if (v == 'del') _confirmDelete(d);
+                                    },
+                                    itemBuilder: (_) => const [
+                                      PopupMenuItem(
+                                          value: 'edit', child: Text('Edit')),
+                                      PopupMenuItem(
+                                          value: 'del', child: Text('Delete')),
+                                    ],
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),

@@ -8,6 +8,9 @@ import 'location_screen.dart';
 import 'review_order.dart';
 import 'order_placed.dart';
 import 'order_history_screen.dart';
+import '../services/reward_points.dart';
+import 'package:intl/intl.dart';
+import '../services/app_state.dart';
 
 /// Modern customer home screen with a hero section, featured items,
 /// and quick action buttons
@@ -22,12 +25,29 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final Map<String, int> _cart = {};
+  // migrated to AppState for real-time sync across screens
+  // keep a default but store centrally
   String? _selectedLocation;
+  int _rewardsPoints = 0;
 
   @override
   void initState() {
     super.initState();
     _selectedLocation = 'Barton Rd Stell'; // default location
+    AppState.instance.setLocation(_selectedLocation);
+    _loadRewards();
+  }
+
+  Future<void> _loadRewards() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      final pts = await RewardPoints.instance.getPoints(user.email ?? '');
+      if (!mounted) return;
+      setState(() => _rewardsPoints = pts);
+    } catch (_) {
+      // ignore errors for now
+    }
   }
 
   void _addToCart(String teaId) {
@@ -79,12 +99,15 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
     });
 
     try {
+      final pickup = AppState.instance.selectedPickup.value;
       await _db.collection('orders').add({
         'customerName': user?.email ?? 'Guest',
         'customerId': user?.uid,
         'total': total,
         'status': 'pending',
-        'location': _selectedLocation,
+        'location':
+            AppState.instance.selectedLocation.value ?? _selectedLocation,
+        if (pickup != null) 'pickupAt': Timestamp.fromDate(pickup),
         'createdAt': FieldValue.serverTimestamp(),
         'items': items,
       });
@@ -138,14 +161,26 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
                 color: Colors.black87,
               ),
             ),
-            if (_selectedLocation != null)
-              Text(
-                _selectedLocation!,
+            ValueListenableBuilder<String?>(
+              valueListenable: AppState.instance.selectedLocation,
+              builder: (_, loc, __) => Text(
+                loc ?? _selectedLocation ?? 'Select location',
                 style: const TextStyle(
                   fontSize: 12,
                   color: Colors.black54,
                 ),
               ),
+            ),
+            ValueListenableBuilder<DateTime?>(
+              valueListenable: AppState.instance.selectedPickup,
+              builder: (_, dt, __) => Padding(
+                padding: const EdgeInsets.only(top: 2.0),
+                child: Text(
+                  dt == null ? '' : DateFormat.yMMMd().add_jm().format(dt),
+                  style: const TextStyle(fontSize: 11, color: Colors.black45),
+                ),
+              ),
+            ),
           ],
         ),
         actions: [
@@ -207,11 +242,10 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
             final demoDocs = [
               {
                 'id': 'a',
-                'name': 'Honey & Cinnamon Latte',
+                'name': 'Tulsi Honey Chai',
                 'price': 5.25,
-                'description':
-                    'Espresso with Soffel Farms honey, dash of cinnamon & milk',
-                'category': 'Coffee'
+                'description': 'Aromatic tulsi chai sweetened with honey',
+                'category': 'Tea'
               },
               {
                 'id': 'b',
@@ -223,9 +257,9 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
               },
               {
                 'id': 'c',
-                'name': 'Green Tea Latte',
+                'name': 'Matcha Green Tea',
                 'price': 5.50,
-                'description': 'Smooth green tea with steamed milk',
+                'description': 'Smooth matcha green tea',
                 'category': 'Tea'
               },
             ];
@@ -296,6 +330,38 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
                               ),
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          // Rewards quick card
+                          if (_rewardsPoints > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                      color: Colors.black12,
+                                      blurRadius: 6,
+                                      offset: Offset(0, 2)),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Rewards',
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.black54)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                      '${(_rewardsPoints / 100).toStringAsFixed(2)} USD • ${_rewardsPoints} pts',
+                                      style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.black87)),
+                                ],
+                              ),
+                            ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: OutlinedButton(
@@ -383,7 +449,7 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
                                       ),
                                       child: Center(
                                         child: Icon(
-                                          Icons.local_cafe,
+                                          Icons.emoji_food_beverage,
                                           size: 48,
                                           color: primaryColor,
                                         ),
@@ -517,14 +583,14 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
             );
             setState(() {}); // Refresh cart badge
           } else if (index == 2) {
-            // Sign in / Profile
             final user = _auth.currentUser;
             if (user == null) {
-              // Not logged in, navigate to auth screen
-              Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const AuthScreen()),
               );
+              // After potential login, refresh rewards
+              await _loadRewards();
             } else {
               // Logged in, show profile dialog
               showDialog(
@@ -545,6 +611,8 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
                           context,
                           MaterialPageRoute(builder: (_) => const AuthScreen()),
                         );
+                        // cleared login — reset rewards
+                        setState(() => _rewardsPoints = 0);
                       },
                       child: const Text('Logout'),
                     ),
@@ -584,9 +652,9 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
           err.contains('permission denied')) {
         // Use demo data
         final demoDocs = [
-          {'id': 'a', 'name': 'Honey & Cinnamon Latte', 'price': 5.25},
+          {'id': 'a', 'name': 'Tulsi Honey Chai', 'price': 5.25},
           {'id': 'b', 'name': 'Masala Chai', 'price': 4.75},
-          {'id': 'c', 'name': 'Green Tea Latte', 'price': 5.50},
+          {'id': 'c', 'name': 'Matcha Green Tea', 'price': 5.50},
         ];
         for (var d in demoDocs) {
           teaData[d['id'] as String] = d;
@@ -680,7 +748,7 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
                             customerPhone:
                                 '', // Could add phone to user profile
                             items: orderItems,
-                            rewardsPoints: 0, // Could implement rewards system
+                            rewardsPoints: _rewardsPoints,
                           ),
                         ),
                       ),

@@ -132,8 +132,13 @@ class ManageOrdersScreen extends StatelessWidget {
                 child: ListTile(
                   title: Text(
                       'Order ${d.id} — ${d['customerName'] ?? 'Customer'}'),
-                  subtitle: Text(
-                    'Total: \$${(d['total'] ?? 0).toString()} • Status: ${status.name}',
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Total: \$${(d['total'] ?? 0).toString()}'),
+                      const SizedBox(height: 6),
+                      _StatusChip(status: status),
+                    ],
                   ),
                   trailing: PopupMenuButton<OrderStatus>(
                     onSelected: (s) async {
@@ -168,6 +173,35 @@ class ManageOrdersScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final OrderStatus status;
+  const _StatusChip({required this.status});
+
+  Color _colorFor(OrderStatus s) {
+    if (s == OrderStatus.cancelled) return Colors.red;
+    if (s == OrderStatus.delivered) return Colors.green;
+    if (s == OrderStatus.processing) return Colors.orange;
+    if (s == OrderStatus.shipped) return Colors.blue;
+    return Colors.grey;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _colorFor(status);
+    return Chip(
+      label: Text(status.name,
+          style: TextStyle(
+              color: color.computeLuminance() > 0.5
+                  ? Colors.black
+                  : Colors.white)),
+      backgroundColor: color.withOpacity(0.15),
+      avatar: CircleAvatar(
+          backgroundColor: color.withOpacity(0.2),
+          child: Icon(Icons.local_shipping, size: 16, color: color)),
     );
   }
 }

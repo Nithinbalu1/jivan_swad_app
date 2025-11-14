@@ -1,4 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import '../services/app_state.dart';
+import 'location_screen.dart';
 import 'package:flutter/material.dart';
 
 /// Browse menu screen with categories and filters
@@ -22,7 +25,6 @@ class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
 
   final List<String> _categories = [
     'All',
-    'Coffee',
     'Tea',
     'Hot/Cold Milk',
     'Breakfast',
@@ -78,19 +80,33 @@ class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.arrow_back, size: 20),
+                    const Icon(Icons.place, size: 20),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Ordering from: ',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                    Text(
-                      'Barton Rd Stell',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: primaryColor,
-                      ),
+                    const Text('Ordering from: ',
+                        style: TextStyle(fontSize: 14)),
+                    ValueListenableBuilder<String?>(
+                      valueListenable: AppState.instance.selectedLocation,
+                      builder: (_, loc, __) {
+                        final label = loc ?? 'Select location';
+                        return GestureDetector(
+                          onTap: () async {
+                            // Open the LocationScreen (same pattern used elsewhere)
+                            final res = await Navigator.push<String?>(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => LocationScreen(
+                                        currentLocation: loc,
+                                      )),
+                            );
+                            if (res != null) AppState.instance.setLocation(res);
+                          },
+                          child: Text(label,
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryColor)),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -98,16 +114,43 @@ class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                      child: GestureDetector(
+                        onTap: () async {
+                          // Pick date then time
+                          final now = DateTime.now();
+                          final d = await showDatePicker(
+                              context: context,
+                              initialDate: now,
+                              firstDate: now,
+                              lastDate: now.add(const Duration(days: 30)));
+                          if (d == null) return;
+                          final t = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(now));
+                          if (t == null) return;
+                          final dt = DateTime(
+                              d.year, d.month, d.day, t.hour, t.minute);
+                          AppState.instance.setPickup(dt);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ValueListenableBuilder<DateTime?>(
+                            valueListenable: AppState.instance.selectedPickup,
+                            builder: (_, dt, __) {
+                              final label = dt == null
+                                  ? 'Pick date & time'
+                                  : DateFormat.yMMMd().add_jm().format(dt);
+                              return Text(label);
+                            },
+                          ),
                         ),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Today, 2:30 PM'),
                       ),
                     ),
                   ],
@@ -169,11 +212,11 @@ class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
                   allTeas = [
                     {
                       'id': 'a',
-                      'name': 'Honey & Cinnamon Latte',
+                      'name': 'Tulsi Honey Chai',
                       'price': 5.25,
                       'description':
-                          'Espresso with Soffel Farms honey, dash of cinnamon & milk',
-                      'category': 'Coffee'
+                          'Aromatic tulsi (holy basil) chai sweetened with honey',
+                      'category': 'Tea'
                     },
                     {
                       'id': 'b',
@@ -185,18 +228,18 @@ class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
                     },
                     {
                       'id': 'c',
-                      'name': 'Caramel Latte',
+                      'name': 'Lemongrass Green',
                       'price': 5.75,
                       'description':
-                          'Espresso with Toffee nut syrup, caramel sauce & milk',
-                      'category': 'Coffee'
+                          'Fresh lemongrass and steamed green tea blend',
+                      'category': 'Tea'
                     },
                     {
                       'id': 'd',
-                      'name': 'Drip Coffee To-Go',
+                      'name': 'Classic Assam',
                       'price': 3.25,
-                      'description': 'Fresh brewed coffee',
-                      'category': 'Coffee'
+                      'description': 'Robust Assam black tea served hot',
+                      'category': 'Tea'
                     },
                   ];
                 }
@@ -286,7 +329,7 @@ class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
                                                 BorderRadius.circular(12),
                                           ),
                                           child: Icon(
-                                            Icons.local_cafe,
+                                            Icons.emoji_food_beverage,
                                             size: 32,
                                             color: primaryColor,
                                           ),

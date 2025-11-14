@@ -14,26 +14,38 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
   // Card
   final cardCtrl = TextEditingController();
-  final expCtrl  = TextEditingController(); // MM/YY
-  final cvvCtrl  = TextEditingController();
+  final expCtrl = TextEditingController(); // MM/YY
+  final cvvCtrl = TextEditingController();
   final nameCtrl = TextEditingController();
 
   // Billing
   final fullNameCtrl = TextEditingController();
-  final streetCtrl   = TextEditingController();
-  final aptCtrl      = TextEditingController();
-  final zipCtrl      = TextEditingController();
-  final stateCtrl    = TextEditingController();
-  final cityCtrl     = TextEditingController();
-  final phoneCtrl    = TextEditingController();
+  final streetCtrl = TextEditingController();
+  final aptCtrl = TextEditingController();
+  final zipCtrl = TextEditingController();
+  final stateCtrl = TextEditingController();
+  final cityCtrl = TextEditingController();
+  final phoneCtrl = TextEditingController();
+
+  String _selectedMethod = 'card';
 
   @override
   void dispose() {
     for (final c in [
-      cardCtrl, expCtrl, cvvCtrl, nameCtrl,
-      fullNameCtrl, streetCtrl, aptCtrl, zipCtrl,
-      stateCtrl, cityCtrl, phoneCtrl,
-    ]) { c.dispose(); }
+      cardCtrl,
+      expCtrl,
+      cvvCtrl,
+      nameCtrl,
+      fullNameCtrl,
+      streetCtrl,
+      aptCtrl,
+      zipCtrl,
+      stateCtrl,
+      cityCtrl,
+      phoneCtrl,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -42,12 +54,26 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     if (d.isEmpty) return 'Add a card';
     final last4 = d.length <= 4 ? d : d.substring(d.length - 4);
     return 'Card •••• $last4';
+  }
+
+  String _methodLabel(String type) {
+    switch (type) {
+      case 'card':
+        return _maskedFromCard(cardCtrl.text);
+      case 'upi':
+        return 'UPI';
+      case 'wallet':
+        return 'Wallet';
+      default:
+        return 'Payment';
     }
+  }
 
   // ---- validators (mirror simulator rules for UX) ----
   String? _lettersOnly(String? v, {String field = 'This field'}) {
     final s = (v ?? '').trim();
-    if (!RegExp(r'^[A-Za-z ]{2,}$').hasMatch(s)) return '$field must contain letters and spaces only';
+    if (!RegExp(r'^[A-Za-z ]{2,}$').hasMatch(s))
+      return '$field must contain letters and spaces only';
     return null;
   }
 
@@ -96,21 +122,22 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
     final billing = <String, String>{
       'fullName': fullNameCtrl.text.trim(),
-      'street'  : streetCtrl.text.trim(),
-      'apt'     : aptCtrl.text.trim(),
-      'zip'     : zipCtrl.text.trim(),
-      'state'   : stateCtrl.text.trim().toUpperCase(),
-      'city'    : cityCtrl.text.trim(),
-      'phone'   : phoneCtrl.text.trim(),
+      'street': streetCtrl.text.trim(),
+      'apt': aptCtrl.text.trim(),
+      'zip': zipCtrl.text.trim(),
+      'state': stateCtrl.text.trim().toUpperCase(),
+      'city': cityCtrl.text.trim(),
+      'phone': phoneCtrl.text.trim(),
     };
 
     Navigator.pop<Map<String, Object?>>(context, {
       'payment': {
-        'masked': _maskedFromCard(cardCtrl.text),
-        'card'  : cardCtrl.text,
-        'exp'   : expCtrl.text,
-        'cvv'   : cvvCtrl.text,
-        'name'  : nameCtrl.text,
+        'masked': _methodLabel(_selectedMethod),
+        'type': _selectedMethod,
+        'card': cardCtrl.text,
+        'exp': expCtrl.text,
+        'cvv': cvvCtrl.text,
+        'name': nameCtrl.text,
       },
       'billing': billing,
     });
@@ -119,52 +146,98 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add a credit or debit card')),
+      appBar: AppBar(title: const Text('Payment method')),
       body: Form(
         key: _form,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextFormField(
-              controller: cardCtrl,
-              decoration: const InputDecoration(labelText: 'Card number'),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              maxLength: 16,
-              validator: _card16,
+            // Method selection
+            Row(
+              children: [
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Text('Card'),
+                    selected: _selectedMethod == 'card',
+                    onSelected: (_) => setState(() => _selectedMethod = 'card'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Text('UPI'),
+                    selected: _selectedMethod == 'upi',
+                    onSelected: (_) => setState(() => _selectedMethod = 'upi'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Text('Wallet'),
+                    selected: _selectedMethod == 'wallet',
+                    onSelected: (_) =>
+                        setState(() => _selectedMethod = 'wallet'),
+                  ),
+                ),
+              ],
             ),
-            Row(children: [
-              Expanded(
-                child: TextFormField(
-                  controller: expCtrl,
-                  decoration: const InputDecoration(labelText: 'MM/YY'),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[\d/]')),
-                  ],
-                  validator: _exp,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: cvvCtrl,
-                  decoration: const InputDecoration(labelText: 'CVV'),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  maxLength: 4,
-                  validator: _cvv,
-                ),
-              ),
-            ]),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'Name on card'),
-              validator: (v) => _lettersOnly(v, field: 'Name on card'),
-            ),
+
+            // Card fields shown only when selected
+            if (_selectedMethod == 'card') ...[
+              TextFormField(
+                controller: cardCtrl,
+                decoration: const InputDecoration(labelText: 'Card number'),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                maxLength: 16,
+                validator: _card16,
+              ),
+              Row(children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: expCtrl,
+                    decoration: const InputDecoration(labelText: 'MM/YY'),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[\d/]')),
+                    ],
+                    validator: _exp,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: cvvCtrl,
+                    decoration: const InputDecoration(labelText: 'CVV'),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 4,
+                    validator: _cvv,
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Name on card'),
+                validator: (v) => _selectedMethod == 'card'
+                    ? _lettersOnly(v, field: 'Name on card')
+                    : null,
+              ),
+            ], // End card fields
+
+            if (_selectedMethod != 'card') ...[
+              // For non-card methods, collect a short identifier (UPI id or wallet id)
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'UPI / Wallet ID'),
+                validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+            ],
             const SizedBox(height: 20),
-            const Text('Billing address', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const Text('Billing address',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             TextFormField(
               controller: fullNameCtrl,
@@ -178,7 +251,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             ),
             TextFormField(
               controller: aptCtrl,
-              decoration: const InputDecoration(labelText: 'Apt/suite (optional)'),
+              decoration:
+                  const InputDecoration(labelText: 'Apt/suite (optional)'),
             ),
             Row(children: [
               Expanded(

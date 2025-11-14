@@ -215,7 +215,7 @@ class _CustomerHomeState extends State<CustomerHome> {
                               return Card(
                                 child: ListTile(
                                   leading: const CircleAvatar(
-                                      child: Icon(Icons.local_cafe)),
+                                      child: Icon(Icons.emoji_food_beverage)),
                                   title: Text(data['name'] as String),
                                   subtitle: Text(
                                       '\$${price.toStringAsFixed(2)} (demo)'),
@@ -324,7 +324,7 @@ class _CustomerHomeState extends State<CustomerHome> {
                               return Card(
                                 child: ListTile(
                                   leading: const CircleAvatar(
-                                      child: Icon(Icons.local_cafe)),
+                                      child: Icon(Icons.emoji_food_beverage)),
                                   title: Text(data['name'] as String),
                                   subtitle: Text(
                                       '\$${price.toStringAsFixed(2)} (demo)'),
@@ -398,7 +398,7 @@ class _CustomerHomeState extends State<CustomerHome> {
                                   backgroundImage:
                                       NetworkImage(data['imageUrl']))
                               : const CircleAvatar(
-                                  child: Icon(Icons.local_cafe)),
+                                  child: Icon(Icons.emoji_food_beverage)),
                           title: Text(data['name'] ?? 'Tea'),
                           subtitle: Text('\$${price.toStringAsFixed(2)}'),
                           trailing: Row(
