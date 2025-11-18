@@ -35,9 +35,14 @@ class _SplashScreenState extends State<SplashScreen> {
 
         if (!mounted) return;
 
-        final role = doc['role'];
+        // Read role safely and normalize to lowercase to match how roles
+        // are stored (AuthService stores role in lowercase).
+        final data = doc.data();
+        final role = (data != null && data.containsKey('role'))
+            ? data['role'].toString().toLowerCase().trim()
+            : '';
 
-        if (role == 'Admin') {
+        if (role == 'admin') {
           Navigator.pushReplacementNamed(context, '/admin');
         } else {
           Navigator.pushReplacementNamed(context, '/customer');
