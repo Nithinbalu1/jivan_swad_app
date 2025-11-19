@@ -22,6 +22,11 @@ class AppState {
         if (pickup is Timestamp) dt = pickup.toDate();
         selectedLocation.value = loc ?? selectedLocation.value;
         selectedPickup.value = dt ?? selectedPickup.value;
+        // load delivery address and service type if present
+        final delivery = data['deliveryAddress'] as String?;
+        final svc = data['serviceType'] as String?;
+        deliveryAddress.value = delivery ?? deliveryAddress.value;
+        serviceType.value = svc ?? serviceType.value;
       }
     });
   }
@@ -31,12 +36,30 @@ class AppState {
   final ValueNotifier<String?> selectedLocation = ValueNotifier<String?>(null);
   final ValueNotifier<DateTime?> selectedPickup =
       ValueNotifier<DateTime?>(null);
+  final ValueNotifier<String?> deliveryAddress = ValueNotifier<String?>(null);
+  final ValueNotifier<String> serviceType = ValueNotifier<String>('pickup');
 
   void setLocation(String? location) {
     selectedLocation.value = location;
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       UserPrefs.instance.saveLocation(user.uid, location);
+    }
+  }
+
+  void setDeliveryAddress(String? address) {
+    deliveryAddress.value = address;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      UserPrefs.instance.saveDeliveryAddress(user.uid, address);
+    }
+  }
+
+  void setServiceType(String type) {
+    serviceType.value = type;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      UserPrefs.instance.saveServiceType(user.uid, type);
     }
   }
 

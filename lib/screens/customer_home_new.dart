@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/payment_simulator.dart';
 import 'ai_assistant.dart';
 import 'auth_screen.dart';
+import 'order_history_screen.dart';
 
 class CustomerHome extends StatefulWidget {
   const CustomerHome({super.key});
@@ -69,18 +70,28 @@ class _CustomerHomeState extends State<CustomerHome> {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('order placed ')));
       } else {
+        // Estimate wait time and include metadata similar to other flows
+        final totalQty = items.fold<int>(0, (s, it) => s + (it['qty'] as int));
+        final estMinutes = (10 + (2 * totalQty)).clamp(5, 120);
+
         await _db.collection('orders').add({
           'customerName': user?.email ?? 'Guest',
+          'customerId': user?.uid,
           'total': total,
           'status': 'pending',
           'createdAt': FieldValue.serverTimestamp(),
+          'estimatedWaitMinutes': estMinutes,
           'items': items,
         });
 
         if (!mounted) return;
         setState(() => _cart.clear());
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Order placed successfully')));
+
+        // Navigate to order history so user can see their order and wait time
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+        );
       }
     } catch (e) {
       if (!mounted) return;

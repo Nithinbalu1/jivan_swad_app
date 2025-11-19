@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'customer_home_modern.dart';
 
 /// Order history screen showing customer's past orders
 class OrderHistoryScreen extends StatelessWidget {
@@ -12,218 +13,280 @@ class OrderHistoryScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     final primaryColor = const Color(0xFF4DB5BD);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Order History'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('orders')
-            .where('customerId', isEqualTo: user?.uid)
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 64, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error loading orders: ${snapshot.error}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ],
-                ),
+    return WillPopScope(
+      onWillPop: () async {
+        // Ensure hardware back navigates to the customer dashboard.
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CustomerHomeModern()),
+        );
+        return false;
+      },
+      child: Builder(
+        builder: (context) {
+          return Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CustomerHomeModern()),
+                  );
+                },
               ),
-            );
-          }
+              title: const Text('Order History'),
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black87,
+              elevation: 0,
+            ),
+            body: StreamBuilder<QuerySnapshot>(
+              // Avoid requiring a composite Firestore index by not ordering on the
+              // server. We still filter by customerId server-side for efficiency,
+              // and then sort results client-side by `createdAt`.
+              stream: FirebaseFirestore.instance
+                  .collection('orders')
+                  .where('customerId', isEqualTo: user?.uid)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          final orders = snapshot.data?.docs ?? [];
-
-          if (orders.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.receipt_long, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No orders yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 64, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error loading orders: ${snapshot.error}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your order history will appear here',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
+                  );
+                }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: orders.length,
-            itemBuilder: (context, index) {
-              final order = orders[index];
-              final data = order.data() as Map<String, dynamic>;
-              final orderId = order.id;
-              final total = (data['total'] ?? 0).toDouble();
-              final status = data['status'] ?? 'pending';
-              final location = data['location'] ?? 'Unknown';
-              final items = (data['items'] ?? []) as List;
-              final timestamp = data['createdAt'] as Timestamp?;
-              final date = timestamp?.toDate();
+                final orders =
+                    List<QueryDocumentSnapshot>.from(snapshot.data?.docs ?? []);
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    _showOrderDetails(context, data, orderId);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                // Sort locally by createdAt (descending). Use 0 for missing timestamps.
+                orders.sort((a, b) {
+                  final da = (a.data() as Map<String, dynamic>)['createdAt']
+                      as Timestamp?;
+                  final db = (b.data() as Map<String, dynamic>)['createdAt']
+                      as Timestamp?;
+                  final ta = da?.millisecondsSinceEpoch ?? 0;
+                  final tb = db?.millisecondsSinceEpoch ?? 0;
+                  return tb.compareTo(ta);
+                });
+
+                if (orders.isEmpty) {
+                  return Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Order #${orderId.substring(0, 8).toUpperCase()}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            _StatusBadge(
-                                status: status, primaryColor: primaryColor),
-                          ],
+                        Icon(Icons.receipt_long,
+                            size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No orders yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         const SizedBox(height: 8),
-                        if (date != null)
-                          Row(
-                            children: [
-                              Icon(Icons.calendar_today,
-                                  size: 14, color: Colors.grey[600]),
-                              const SizedBox(width: 4),
-                              Text(
-                                DateFormat('MMM dd, yyyy • hh:mm a')
-                                    .format(date),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
+                        Text(
+                          'Your order history will appear here',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[500],
                           ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(Icons.location_on,
-                                size: 14, color: Colors.grey[600]),
-                            const SizedBox(width: 4),
-                            Text(
-                              location,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Divider(height: 20),
-                        ...items.take(2).map((item) {
-                          final itemData = item as Map<String, dynamic>;
-                          final name = itemData['name'] ?? 'Item';
-                          final qty = itemData['qty'] ?? 1;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: primaryColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '$name × $qty',
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                        if (items.length > 2)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 14, top: 4),
-                            child: Text(
-                              '+${items.length - 2} more items',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[600],
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Total',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                            Text(
-                              '\$${total.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: primaryColor,
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),
-                  ),
-                ),
-              );
-            },
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: orders.length,
+                  itemBuilder: (context, index) {
+                    final order = orders[index];
+                    final data = order.data() as Map<String, dynamic>;
+                    final orderId = order.id;
+                    final total = (data['total'] ?? 0).toDouble();
+                    final status = data['status'] ?? 'pending';
+                    final location = data['location'] ?? 'Unknown';
+                    final items = (data['items'] ?? []) as List;
+                    final timestamp = data['createdAt'] as Timestamp?;
+                    final date = timestamp?.toDate();
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          _showOrderDetails(context, data, orderId);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Order #${orderId.substring(0, 8).toUpperCase()}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  _StatusBadge(
+                                      status: status,
+                                      primaryColor: primaryColor),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              if (date != null)
+                                Row(
+                                  children: [
+                                    Icon(Icons.calendar_today,
+                                        size: 14, color: Colors.grey[600]),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      DateFormat('MMM dd, yyyy • hh:mm a')
+                                          .format(date),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              // Show estimated wait time if available
+                              if ((data['estimatedWaitMinutes'] ?? null) !=
+                                  null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6.0),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.timer,
+                                          size: 14, color: Colors.grey),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Est wait: ${data['estimatedWaitMinutes']} min',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[700]),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(Icons.location_on,
+                                      size: 14, color: Colors.grey[600]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    location,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 20),
+                              ...items.take(2).map((item) {
+                                final itemData = item as Map<String, dynamic>;
+                                final name = itemData['name'] ?? 'Item';
+                                final qty = itemData['qty'] ?? 1;
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: primaryColor,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          '$name × $qty',
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                              if (items.length > 2)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.only(left: 14, top: 4),
+                                  child: Text(
+                                    '+${items.length - 2} more items',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey[600],
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Total',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  Text(
+                                    '\$${total.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           );
         },
       ),
@@ -288,6 +351,12 @@ class OrderHistoryScreen extends StatelessWidget {
                     icon: Icons.calendar_today,
                     label: 'Date',
                     value: DateFormat('MMM dd, yyyy • hh:mm a').format(date),
+                  ),
+                if ((data['estimatedWaitMinutes'] ?? null) != null)
+                  _InfoRow(
+                    icon: Icons.timer,
+                    label: 'Estimated wait',
+                    value: '${data['estimatedWaitMinutes']} min',
                   ),
                 _InfoRow(
                   icon: Icons.location_on,

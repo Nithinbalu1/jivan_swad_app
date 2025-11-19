@@ -27,6 +27,22 @@ class UserPrefs {
     } catch (_) {}
   }
 
+  Future<void> saveDeliveryAddress(String uid, String? address) async {
+    try {
+      await _users
+          .doc(uid)
+          .set({'deliveryAddress': address}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  Future<void> saveServiceType(String uid, String? serviceType) async {
+    try {
+      await _users
+          .doc(uid)
+          .set({'serviceType': serviceType}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
   /// Loads prefs (selectedLocation and pickupAt) from the user's doc.
   Future<Map<String, dynamic>> loadPrefs(String uid) async {
     try {

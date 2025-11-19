@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../services/app_state.dart';
 import 'location_screen.dart';
 import 'package:flutter/material.dart';
+import 'review_order.dart';
 
 /// Browse menu screen with categories and filters
 class MenuBrowseScreen extends StatefulWidget {
@@ -21,16 +22,7 @@ class MenuBrowseScreen extends StatefulWidget {
 
 class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  String _selectedCategory = 'All';
-
-  final List<String> _categories = [
-    'All',
-    'Tea',
-    'Hot/Cold Milk',
-    'Breakfast',
-    'Bakery',
-    'Lunch/Dinner'
-  ];
+  // Categories removed per request; show full menu list.
 
   void _showItemDetails(Map<String, dynamic> item, String itemId) {
     showModalBottomSheet(
@@ -159,40 +151,7 @@ class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
             ),
           ),
 
-          // Category filters
-          Container(
-            height: 50,
-            color: Colors.white,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _categories.length,
-              itemBuilder: (context, i) {
-                final category = _categories[i];
-                final isSelected = category == _selectedCategory;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(category),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() => _selectedCategory = category);
-                    },
-                    backgroundColor: Colors.white,
-                    selectedColor: primaryColor.withOpacity(0.2),
-                    labelStyle: TextStyle(
-                      color: isSelected ? primaryColor : Colors.black87,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                    side: BorderSide(
-                      color: isSelected ? primaryColor : Colors.grey[300]!,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+          // Categories removed: show full menu directly
 
           // Items list
           Expanded(
@@ -244,12 +203,7 @@ class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
                   ];
                 }
 
-                // Filter by category
-                if (_selectedCategory != 'All') {
-                  allTeas = allTeas
-                      .where((tea) => tea['category'] == _selectedCategory)
-                      .toList();
-                }
+                // No category filtering: show all items
 
                 return ListView(
                   padding: const EdgeInsets.all(16),
@@ -320,18 +274,52 @@ class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
                                     const SizedBox(width: 16),
                                     Stack(
                                       children: [
+                                        // Square product image (uses `imageUrl` if present)
                                         Container(
                                           width: 80,
                                           height: 80,
                                           decoration: BoxDecoration(
                                             color: Colors.grey[200],
                                             borderRadius:
-                                                BorderRadius.circular(12),
+                                                BorderRadius.circular(4),
                                           ),
-                                          child: Icon(
-                                            Icons.emoji_food_beverage,
-                                            size: 32,
-                                            color: primaryColor,
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                            child: (item['imageUrl'] != null &&
+                                                    (item['imageUrl'] as String)
+                                                        .isNotEmpty)
+                                                ? Image.network(
+                                                    item['imageUrl'] as String,
+                                                    width: 80,
+                                                    height: 80,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder:
+                                                        (context, error, st) =>
+                                                            Center(
+                                                      child: Icon(
+                                                        Icons
+                                                            .emoji_food_beverage,
+                                                        size: 32,
+                                                        color: primaryColor,
+                                                      ),
+                                                    ),
+                                                    loadingBuilder:
+                                                        (context, child, prog) {
+                                                      if (prog == null)
+                                                        return child;
+                                                      return const Center(
+                                                          child:
+                                                              CircularProgressIndicator());
+                                                    },
+                                                  )
+                                                : Center(
+                                                    child: Icon(
+                                                      Icons.emoji_food_beverage,
+                                                      size: 32,
+                                                      color: primaryColor,
+                                                    ),
+                                                  ),
                                           ),
                                         ),
                                         if (inCart > 0)
@@ -371,6 +359,57 @@ class _MenuBrowseScreenState extends State<MenuBrowseScreen> {
           ),
         ],
       ),
+      floatingActionButton: widget.cart.isNotEmpty
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                // Build items list by querying Firestore for current prices/names
+                final teaData = <String, Map<String, dynamic>>{};
+                try {
+                  final docs =
+                      await FirebaseFirestore.instance.collection('teas').get();
+                  for (var d in docs.docs) {
+                    final m = Map<String, dynamic>.from(d.data() as Map);
+                    m['id'] = d.id;
+                    teaData[d.id] = m;
+                  }
+                } catch (_) {
+                  // ignore and allow demo fallback in ReviewOrder
+                }
+
+                // Compose order items
+                final items = <OrderItem>[];
+                widget.cart.forEach((id, qty) {
+                  final tea = teaData[id];
+                  final name = tea != null ? tea['name'].toString() : id;
+                  final price = tea != null
+                      ? ((tea['price'] ?? 0.0) as num).toDouble()
+                      : 0.0;
+                  items.add(OrderItem(
+                      name: name, priceCents: (price * 100).round(), qty: qty));
+                });
+
+                if (!mounted) return;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ReviewOrderScreen(
+                      args: ReviewOrderArgs(
+                        customerName: 'Guest',
+                        customerEmail: '',
+                        customerPhone: '',
+                        items: items,
+                        rewardsPoints: 0,
+                      ),
+                    ),
+                  ),
+                );
+              },
+              heroTag: 'cart_fab',
+              label: Text(
+                  '${widget.cart.values.fold<int>(0, (s, v) => s + v)} • View Cart'),
+              icon: const Icon(Icons.shopping_cart),
+            )
+          : null,
     );
   }
 }
@@ -396,15 +435,7 @@ class _ItemDetailsSheetState extends State<ItemDetailsSheet> {
   int _quantity = 1;
   String? _selectedSize;
 
-  final List<Map<String, dynamic>> _sizes = [
-    {'name': '8oz Hot', 'price': 5.25},
-    {'name': '12oz Hot', 'price': 5.75},
-    {'name': '12oz Iced', 'price': 5.75},
-    {'name': '16oz Hot', 'price': 6.25},
-    {'name': '16oz Iced', 'price': 6.25},
-    {'name': '24oz Hot', 'price': 7.75},
-    {'name': '24oz Iced', 'price': 7.75},
-  ];
+  final List<Map<String, dynamic>> _sizes = [];
 
   @override
   Widget build(BuildContext context) {
@@ -497,7 +528,7 @@ class _ItemDetailsSheetState extends State<ItemDetailsSheet> {
 
             // Size selector
             const Text(
-              'Size',
+              '',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -505,7 +536,7 @@ class _ItemDetailsSheetState extends State<ItemDetailsSheet> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Required',
+              '',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.red,

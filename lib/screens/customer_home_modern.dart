@@ -6,7 +6,8 @@ import 'auth_screen.dart';
 import 'menu_browse_screen.dart';
 import 'location_screen.dart';
 import 'review_order.dart';
-import 'order_placed.dart';
+// 'order_placed.dart' replaced by direct navigation to OrderHistoryScreen
+// keep file removed to avoid unused import
 import 'order_history_screen.dart';
 import '../services/reward_points.dart';
 import 'package:intl/intl.dart';
@@ -100,6 +101,10 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
 
     try {
       final pickup = AppState.instance.selectedPickup.value;
+      // Estimate waiting time (simple heuristic: base 10 minutes + 2 minutes per item)
+      final totalQty = items.fold<int>(0, (s, it) => s + (it['qty'] as int));
+      final estMinutes = (10 + (2 * totalQty)).clamp(5, 120);
+
       await _db.collection('orders').add({
         'customerName': user?.email ?? 'Guest',
         'customerId': user?.uid,
@@ -109,16 +114,34 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
             AppState.instance.selectedLocation.value ?? _selectedLocation,
         if (pickup != null) 'pickupAt': Timestamp.fromDate(pickup),
         'createdAt': FieldValue.serverTimestamp(),
+        'estimatedWaitMinutes': estMinutes,
         'items': items,
       });
+
+      // Award reward points for the order: 1 point per whole $1 of subtotal
+      try {
+        if (user != null) {
+          final int pointsEarned = total.floor();
+          final newBalance = await RewardPoints.instance.addPoints(
+            user.email ?? '',
+            pointsEarned,
+          );
+          if (!mounted) return;
+          setState(() => _rewardsPoints = newBalance);
+        }
+      } catch (_) {
+        // non-fatal if reward accounting fails
+      }
 
       if (!mounted) return;
       setState(() => _cart.clear());
 
-      // Navigate to order placed screen
+      // After placing the order, navigate to the order history so the user
+      // can see the new order and estimated waiting time.
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const OrderPlacedScreen()),
+        MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
       );
     } catch (e) {
       if (!mounted) return;
@@ -161,14 +184,46 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
                 color: Colors.black87,
               ),
             ),
+            // Location with rewards badge to the right
             ValueListenableBuilder<String?>(
               valueListenable: AppState.instance.selectedLocation,
-              builder: (_, loc, __) => Text(
-                loc ?? _selectedLocation ?? 'Select location',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.black54,
-                ),
+              builder: (_, loc, __) => Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      loc ?? _selectedLocation ?? 'Select location',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (_rewardsPoints > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.yellow[700],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star, size: 12, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${_rewardsPoints} pts',
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
             ValueListenableBuilder<DateTime?>(
@@ -184,9 +239,9 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.location_on, color: Colors.black87),
-            onPressed: () async {
+          // Location button with optional rewards badge
+          GestureDetector(
+            onTap: () async {
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -199,6 +254,16 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
                 setState(() => _selectedLocation = result);
               }
             },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.location_on,
+                      color: Colors.black87, size: 24),
+                ],
+              ),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.person, color: Colors.black87),
@@ -273,17 +338,20 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Hero banner
+                // Hero header: title + CTA buttons. Image placed below buttons.
                 Container(
                   width: double.infinity,
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [primaryColor.withOpacity(0.1), Colors.white],
+                      colors: [
+                        primaryColor.withOpacity(0.06),
+                        Colors.white.withOpacity(0.8)
+                      ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
                   ),
-                  padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -339,7 +407,7 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
+                                boxShadow: const [
                                   BoxShadow(
                                       color: Colors.black12,
                                       blurRadius: 6,
@@ -397,128 +465,27 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
                   ),
                 ),
 
-                // Featured items
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Featured Items',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                // Hero image shown below the buttons (full-width, larger)
+                Builder(
+                  builder: (context) {
+                    final height = MediaQuery.of(context).size.height * 0.63;
+                    return SizedBox(
+                      width: double.infinity,
+                      height: height,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.zero,
+                        child: Image.asset(
+                          'assets/images/hero.png',
+                          width: double.infinity,
+                          height: height,
+                          fit: BoxFit.cover,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.75,
-                        ),
-                        itemCount: allTeas.length > 4 ? 4 : allTeas.length,
-                        itemBuilder: (context, i) {
-                          final item = allTeas[i];
-                          final id = item['id'] as String;
-                          final price = (item['price'] ?? 0).toDouble();
-                          final inCart = _cart[id] ?? 0;
-
-                          return GestureDetector(
-                            onTap: () => _showItemDetails(item, id),
-                            child: Card(
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[200],
-                                        borderRadius:
-                                            const BorderRadius.vertical(
-                                          top: Radius.circular(16),
-                                        ),
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.emoji_food_beverage,
-                                          size: 48,
-                                          color: primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item['name'] ?? 'Tea',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              '\$${price.toStringAsFixed(2)}',
-                                              style: TextStyle(
-                                                color: primaryColor,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                              ),
-                                            ),
-                                            if (inCart > 0)
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 4,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: primaryColor,
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                child: Text(
-                                                  'x$inCart',
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
+
+                // Featured Items removed — items available in Menu
               ],
             ),
           );
@@ -625,6 +592,7 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
       ),
       floatingActionButton: _cart.isNotEmpty
           ? FloatingActionButton.extended(
+              heroTag: 'cart_fab',
               backgroundColor: primaryColor,
               onPressed: () => _showCartDialog(),
               icon: const Icon(Icons.shopping_cart),

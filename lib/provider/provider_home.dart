@@ -6,6 +6,7 @@ import '../screens/auth_screen.dart';
 import 'manage_teas.dart';
 import 'manage_orders.dart';
 import 'analytics.dart';
+import 'store_settings.dart';
 
 class ProviderHome extends StatefulWidget {
   const ProviderHome({super.key});
@@ -220,9 +221,12 @@ class _ProviderHomeState extends State<ProviderHome> {
                         icon: Icons.settings,
                         label: 'Settings',
                         color: Colors.grey,
-                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Settings coming soon'))),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => StoreSettingsScreen(),
+                          ),
+                        ),
                       ),
                     ],
                   ),
