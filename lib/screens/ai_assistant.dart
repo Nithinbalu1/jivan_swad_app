@@ -13,7 +13,15 @@ class AIAssistantScreen extends StatefulWidget {
   /// personalized recommendations.
   final Map<String, int> cart;
 
-  const AIAssistantScreen({super.key, required this.items, required this.cart});
+  /// Optional callback to add an item to cart from assistant recommendations
+  final void Function(String itemId)? onAddToCart;
+
+  const AIAssistantScreen({
+    super.key,
+    required this.items,
+    required this.cart,
+    this.onAddToCart,
+  });
 
   @override
   State<AIAssistantScreen> createState() => _AIAssistantScreenState();
@@ -21,6 +29,9 @@ class AIAssistantScreen extends StatefulWidget {
 
 class _AIAssistantScreenState extends State<AIAssistantScreen> {
   final TextEditingController _search = TextEditingController();
+  final TextEditingController _input = TextEditingController();
+
+  final List<Map<String, String>> _messages = [];
 
   final List<Map<String, String>> _faq = [
     {
@@ -59,6 +70,59 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   void initState() {
     super.initState();
     _buildRecommendations();
+  }
+
+  void _addUserMessage(String text) {
+    setState(() {
+      _messages.add({'from': 'user', 'text': text});
+    });
+  }
+
+  void _addBotMessage(String text) {
+    setState(() {
+      _messages.add({'from': 'bot', 'text': text});
+    });
+  }
+
+  String _generateReply(String msg) {
+    final low = msg.toLowerCase();
+
+    // Direct keyword replies
+    if (low.contains('order') && low.contains('how')) {
+      return _faq.firstWhere(
+          (f) => f['q']!.toLowerCase().contains('place an order'))['a']!;
+    }
+    if (low.contains('cancel')) {
+      return _faq
+          .firstWhere((f) => f['q']!.toLowerCase().contains('cancel'))['a']!;
+    }
+    if (low.contains('admin') || low.contains('add item')) {
+      return _faq.firstWhere(
+          (f) => f['q']!.toLowerCase().contains('add new items'))['a']!;
+    }
+
+    // Try to find matching FAQ by words
+    final words = low.split(RegExp(r'\W+')).where((w) => w.length > 2).toSet();
+    for (var f in _faq) {
+      final text = (f['q']! + ' ' + f['a']!).toLowerCase();
+      final intersect = words.where((w) => text.contains(w));
+      if (intersect.isNotEmpty) return f['a']!;
+    }
+
+    // Try to match items
+    final items = _items;
+    final matches = <Map<String, dynamic>>[];
+    for (var it in items) {
+      final name = (it['name'] ?? '').toString().toLowerCase();
+      if (words.any((w) => name.contains(w))) matches.add(it);
+    }
+    if (matches.isNotEmpty) {
+      final names = matches.map((m) => m['name']).take(3).join(', ');
+      return 'I found these items that may help: $names. Tap an item in Recommendations to learn more.';
+    }
+
+    // Default fallback
+    return 'Sorry, I did not understand that. Try asking about ordering, cancelling, or ask for recommendations.';
   }
 
   void _buildRecommendations() {
@@ -125,6 +189,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
+            // Search / FAQ filter
             TextField(
               controller: _search,
               decoration: const InputDecoration(
@@ -134,6 +199,82 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
+
+            // Chat area
+            Container(
+              height: 240,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: _messages.isEmpty
+                        ? const Center(child: Text('Ask me anything...'))
+                        : ListView.builder(
+                            reverse: true,
+                            itemCount: _messages.length,
+                            itemBuilder: (context, idx) {
+                              final m = _messages[_messages.length - 1 - idx];
+                              final fromUser = m['from'] == 'user';
+                              return Align(
+                                alignment: fromUser
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(
+                                      vertical: 6, horizontal: 8),
+                                  padding: const EdgeInsets.all(10),
+                                  constraints: BoxConstraints(
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width *
+                                              0.75),
+                                  decoration: BoxDecoration(
+                                    color: fromUser
+                                        ? Colors.blueAccent
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    m['text'] ?? '',
+                                    style: TextStyle(
+                                        color: fromUser
+                                            ? Colors.white
+                                            : Colors.black87),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _input,
+                          decoration: const InputDecoration(
+                            hintText: 'Type a message',
+                            border: InputBorder.none,
+                          ),
+                          onSubmitted: (v) => _handleSend(),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.send),
+                        onPressed: _handleSend,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // FAQ and recommendations below chat
             Expanded(
               child: ListView(
                 children: [
@@ -154,9 +295,50 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                   const SizedBox(height: 8),
                   ..._recommendations.map((it) => Card(
                         child: ListTile(
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: (it[''] != null &&
+                                    it[''].toString().isNotEmpty)
+                                ? Image.network(
+                                    it[''].toString(),
+                                    width: 0,
+                                    height: 0,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+                                      return Container(
+                                        width: 0,
+                                        height: 0,
+                                        color: Colors.grey[200],
+                                        child: const Center(
+                                            child: SizedBox(
+                                          width: 0,
+                                          height: 0,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
+                                        )),
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stack) =>
+                                        Container(
+                                      width: 0,
+                                      height: 0,
+                                      color: Colors.grey[200],
+                                      child: const Icon(Icons.local_cafe,
+                                          color: Colors.brown),
+                                    ),
+                                  )
+                                : Container(
+                                    width: 0,
+                                    height: 0,
+                                    color: Colors.grey[200],
+                                    child: const Icon(Icons.local_cafe,
+                                        color: Colors.brown),
+                                  ),
+                          ),
                           title: Text(it['name'] ?? 'Item'),
                           subtitle: Text(it['description']?.toString() ?? ''),
-                          trailing: Text('\$${(it['price'] ?? 0).toString()}'),
+                          trailing: null,
                         ),
                       )),
                 ],
@@ -166,5 +348,16 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
         ),
       ),
     );
+  }
+
+  void _handleSend() {
+    final text = _input.text.trim();
+    if (text.isEmpty) return;
+    _input.clear();
+    _addUserMessage(text);
+    // generate reply (local heuristic)
+    final reply = _generateReply(text);
+    Future.delayed(
+        const Duration(milliseconds: 250), () => _addBotMessage(reply));
   }
 }

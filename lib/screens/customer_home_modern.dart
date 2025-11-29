@@ -9,6 +9,7 @@ import 'review_order.dart';
 // 'order_placed.dart' replaced by direct navigation to OrderHistoryScreen
 // keep file removed to avoid unused import
 import 'order_history_screen.dart';
+import 'ai_assistant.dart';
 import '../services/reward_points.dart';
 import 'package:intl/intl.dart';
 import '../services/app_state.dart';
@@ -456,6 +457,34 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Assistant button
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              // Use demo items if tea list wasn't loaded; passing `_cart` for personalized recs
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AIAssistantScreen(
+                                    items: allTeas,
+                                    cart: _cart,
+                                    onAddToCart: (id) => _addToCart(id),
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.smart_toy, size: 18),
+                            label: const Text('Assistant'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: primaryColor,
+                              side: BorderSide(color: primaryColor),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 16, horizontal: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                           ),

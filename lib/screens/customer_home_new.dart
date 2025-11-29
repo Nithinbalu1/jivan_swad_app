@@ -132,8 +132,10 @@ class _CustomerHomeState extends State<CustomerHome> {
               if (!mounted) return;
               navigator.push(
                 MaterialPageRoute(
-                    builder: (_) =>
-                        AIAssistantScreen(items: items, cart: _cart)),
+                    builder: (_) => AIAssistantScreen(
+                        items: items,
+                        cart: _cart,
+                        onAddToCart: (id) => _addToCart(id))),
               );
             },
             icon: const Icon(Icons.smart_toy_outlined),
