@@ -12,6 +12,7 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   double revenue = 0.0;
   Map<String, int> teaCounts = {};
+  Map<String, String> teaNames = {};
   Map<String, double> last7 = {};
   List<String> last7Labels = [];
   bool loading = true;
@@ -26,6 +27,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Future<void> _loadAnalytics() async {
     setState(() => loading = true);
+    // fetch tea names to display human-friendly labels
+    try {
+      final teasSnap =
+          await FirebaseFirestore.instance.collection('teas').get();
+      final Map<String, String> names = {};
+      for (var d in teasSnap.docs) {
+        final data = d.data();
+        final n = (data['name'] ?? d.id).toString();
+        names[d.id] = n;
+      }
+      teaNames = names;
+    } catch (_) {
+      // ignore errors — we'll fall back to ids
+      teaNames = {};
+    }
     final ordersSnap = await FirebaseFirestore.instance
         .collection('orders')
         .orderBy('createdAt', descending: true)
@@ -96,6 +112,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     setState(() {
       revenue = r;
       teaCounts = counts;
+      teaNames = teaNames;
       last7 = last7;
       totalOrders = ordersSnap.docs.length;
       totalItemsSold = itemsTotal;
@@ -238,7 +255,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           return Card(
                             child: ListTile(
                               leading: CircleAvatar(child: Text('${i + 1}')),
-                              title: Text(label),
+                              title: Text(teaNames[label] ?? label),
                               subtitle: Text('Sold: ${e.value}'),
                             ),
                           );
