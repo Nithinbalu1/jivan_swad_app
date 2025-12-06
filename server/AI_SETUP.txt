@@ -1,0 +1,141 @@
+AI Setup & Start Guide for Jivan Swad - AI Assistant
+
+Purpose:
+This file documents the quick start steps to get the AI proxy and the Flutter app working together with Firebase. It covers installation, Firebase setup, server/proxy configuration (OpenAI / Ollama), local testing, and options to run the proxy continuously.
+
+Prerequisites
+- Node.js (14+ recommended) and npm — https://nodejs.org/
+- Flutter SDK (for running the app) — https://flutter.dev/docs/get-started/install
+- Firebase account and project — https://console.firebase.google.com/
+- Firebase CLI (optional, for configuring firebase_options.dart) — https://firebase.google.com/docs/cli
+- (Optional) PM2 for process management — https://pm2.keymetrics.io/
+- (Optional) NSSM for Windows services — https://nssm.cc/
+- (Optional) Docker (for container deployments) — https://docs.docker.com/get-docker/
+- (Optional) VS Code (recommended editor) — https://code.visualstudio.com/
+- A provider API key: OpenAI API key or Ollama key (keep secret)
+
+Flutter Android setup (Android Studio / SDK / emulator)
+--------------------------------------------------
+If you plan to run or test the Flutter Android build, follow these steps to install Android Studio, the Android SDK, accept licenses, and create an emulator.
+
+1) Install Android Studio (includes SDK & AVD Manager)
+- Download and install Android Studio: https://developer.android.com/studio
+- During installation enable Android SDK, Android SDK Platform-Tools, and Android Virtual Device (AVD) components.
+
+2) Configure environment variables (if not using Android Studio default)
+- On Windows set `ANDROID_HOME` or `ANDROID_SDK_ROOT` to your SDK path (example):
+  - `setx ANDROID_SDK_ROOT "C:\Users\<you>\AppData\Local\Android\sdk"`
+- On macOS / Linux add to `~/.bashrc` or `~/.zshrc`:
+  - `export ANDROID_SDK_ROOT="$HOME/Library/Android/sdk"` (mac)
+  - `export PATH="$PATH:$ANDROID_SDK_ROOT/platform-tools"`
+
+3) Accept Android licenses
+- Run Flutter doctor and accept licenses manually:
+  - `flutter doctor --android-licenses`
+
+- To accept automatically (macOS / Linux):
+  - `yes | flutter doctor --android-licenses`
+
+- To accept automatically on Windows (PowerShell / CMD):
+  - PowerShell: `echo y | flutter doctor --android-licenses`
+  - CMD (example): `cmd /c "echo y| flutter doctor --android-licenses"`
+
+4) Create and run an emulator
+- Use Android Studio -> AVD Manager -> Create Virtual Device (recommended UI path).
+- Or from the command line (after installing platform-tools and emulator):
+  - `flutter emulators`                # list available emulators
+  - `flutter emulators --create --name Pixel_API_30`   # create (tooling may vary)
+  - `flutter emulators --launch <emulator_id>`
+  - `flutter run`                      # run app on emulator/device
+
+5) Verify setup
+- `flutter doctor` should report no issues for Android toolchain and connected devices.
+
+Notes
+- If you use a physical device, enable Developer Options and USB debugging and run `flutter devices` to confirm the device is visible.
+- The Android emulator host mapping used by the app is `10.0.2.2` (emulator -> host) which is already handled in the app.
+
+1) Clone & initial project setup (local)
+- Clone the repo and open workspace in VS Code.
+- Install server deps:
+  cd server
+  npm install
+- Install Flutter packages (project root):
+  flutter pub get
+
+2) Server environment (.env)
+- Copy `.env.sample` to `.env` in the `server/` folder.
+  cp .env.sample .env
+- Open `server/.env` and set one of:
+  - `OPENAI_API_KEY=sk-...` (if using OpenAI)
+  - `OLLAMA_API_KEY=...` and optionally `OLLAMA_BASE_URL` and `OLLAMA_MODEL` (if using Ollama)
+- Optional: set `PREFERRED_PROVIDER=ollama` or `openai` if you want to force a provider.
+
+3) Firebase setup (web & app authentication + Firestore)
+- Create a Firebase project at https://console.firebase.google.com/
+- Enable Authentication (Email/Password or provider of your choice).
+- Create Cloud Firestore database (start in test mode during development then switch to locked rules before production).
+- Add a Web app (or Android/iOS) in Firebase console and copy the config; in Flutter add the `firebase_options.dart` via `flutterfire` CLI or follow Firebase setup instructions.
+- Firestore collections used by the app:
+  - `users/<uid>` : user documents. The app expects a `role` field (e.g., `"customer"`) to allow chat sync for that user.
+  - `ai_chats/<uid>/messages` : chat messages for each user are stored here (documents with fields: `role` (`user`|`bot`), `text`, `createdAt`).
+
+Create a test user and set role
+- In Firestore `users` collection, create a document with the test user's uid (or let the app create it on sign-up) and set `role: "customer"` to enable chat sync.
+
+4) Run the server (development)
+- From `server/` directory:
+  node index.js
+  # or
+  npm start
+- The server listens on port 8787 by default. Use `/api/ai/status` to verify provider and key presence.
+
+5) Run the server continuously (recommended)
+- Option A: PM2 (cross-platform):
+  npm install -g pm2
+  cd server
+  pm2 start ecosystem.config.js
+  pm2 save
+  pm2 logs jivan-swad-ai-proxy
+
+- Option B: NSSM (Windows Service):
+  # Run as Admin; adjust node.exe path
+  nssm install jivan-swad-ai-proxy "C:\Program Files\nodejs\node.exe" "D:\Network_project\jivan_swad_app\jivan_swad_app\server\index.js"
+  nssm set jivan-swad-ai-proxy AppDirectory "D:\Network_project\jivan_swad_app\jivan_swad_app\server"
+  nssm start jivan-swad-ai-proxy
+
+6) Configure the Flutter client
+- Proxy URL mapping supported by the app code:
+  - Web (Flutter Web): `http://localhost:8787/api/ai/chat`
+  - Android emulator: `http://10.0.2.2:8787/api/ai/chat`
+  - iOS simulator / device: use host machine IP (e.g., `http://192.168.x.y:8787/api/ai/chat`), ensure firewall allows the port.
+- The client uses `_buildPrompt(...)` to include a catalog excerpt into each prompt. Ensure `widget.items` is populated from Firestore before asking the assistant (the app already attempts to load items; if demo items appear, the assistant will use those).
+
+7) Test end-to-end (PowerShell)
+- Test status:
+  Invoke-RestMethod -Uri 'http://localhost:8787/api/ai/status' -Method Get | ConvertTo-Json -Depth 5
+- Test chat:
+  $body = '{ "prompt": "Hello from test" }'
+  Invoke-RestMethod -Uri 'http://localhost:8787/api/ai/chat' -Method Post -ContentType 'application/json' -Body $body
+
+8) Security notes
+- Never commit `.env` or API keys. Rotate keys if accidentally exposed.
+- In production restrict CORS on the proxy to your app origins.
+- Add authentication + rate limiting to the proxy in production to prevent abuse.
+
+9) Troubleshooting
+- XMLHttpRequest errors in a browser: ensure the app uses `http://localhost:8787` (web) not `10.0.2.2`.
+- TimeoutException: server may be slow to fetch from upstream provider. Check server logs (`pm2 logs` or console) and upstream provider status. Increase timeouts if needed.
+- Proxy not reachable: check firewall, confirm process running, confirm port 8787 listening.
+- If assistant returns generic answers: ensure `widget.items` contains real catalog items and ask a catalog-specific question; consider server-side catalog inclusion if you need canonical prompts.
+
+10) Optional: Deploy to cloud (short notes)
+- Containerize with Docker and deploy to Cloud Run / ECS / DigitalOcean App Platform for managed uptime.
+- Or port the proxy to a serverless function (Cloud Functions, Vercel) — be mindful of function timeouts for long upstream responses.
+
+11) Useful files
+- `server/index.js` - main proxy
+- `server/.env.sample` - keys and config sample
+- `server/ecosystem.config.js` - PM2 config file
+- `lib/screens/ai_assistant.dart` - Flutter assistant UI and prompt builder
+

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:jivan_swad_app/provider/manage_orders.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:jivan_swad_app/screens/auth_screen.dart';
 import 'package:jivan_swad_app/provider/provider_home.dart';
 import 'package:jivan_swad_app/screens/customer_home_modern.dart';
@@ -13,6 +14,14 @@ import 'package:jivan_swad_app/services/data_seeder.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Load local environment variables (optional). Create a `.env` in project root
+  // with OPENAI_API_KEY=sk-... if you want direct client OpenAI calls.
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    // ignore - proceed if .env not present
+  }
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

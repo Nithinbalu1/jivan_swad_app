@@ -1,0 +1,216 @@
+Comprehensive Setup & Run Commands for Jivan Swad AI Proxy and Flutter App
+
+This file collects all installation, configuration, run, and test commands from project start through local development and continuous deployment options.
+
+Prerequisites & links
+- Node.js + npm: https://nodejs.org/
+- Flutter SDK: https://flutter.dev/docs/get-started/install
+- Firebase Console: https://console.firebase.google.com/
+- Firebase CLI: https://firebase.google.com/docs/cli
+- Android Studio (includes Android SDK & AVD): https://developer.android.com/studio
+- PM2 (process manager): https://pm2.keymetrics.io/
+- NSSM (Windows service helper): https://nssm.cc/
+- Docker (optional): https://docs.docker.com/get-docker/
+- VS Code: https://code.visualstudio.com/
+
+1) Clone & project prep
+```powershell
+# Clone (example)
+git clone <your-repo-url> D:\Network_project\jivan_swad_app\jivan_swad_app
+cd D:\Network_project\jivan_swad_app\jivan_swad_app
+
+# Fetch Flutter dependencies
+flutter pub get
+
+# Install server dependencies
+cd server
+npm install
+```
+
+2) Server environment (.env)
+```powershell
+cd D:\Network_project\jivan_swad_app\jivan_swad_app\server
+copy .env.sample .env
+# Edit server/.env and add keys:
+# OPENAI_API_KEY=sk-...
+# or
+# OLLAMA_API_KEY=...
+# Optionally set: OLLAMA_BASE_URL, OLLAMA_MODEL, PREFERRED_PROVIDER
+```
+
+3) Run server (development)
+```powershell
+cd D:\Network_project\jivan_swad_app\jivan_swad_app\server
+npm start
+# or
+node index.js
+```
+
+4) Verify server and test endpoints
+```powershell
+# Status (provider & key presence)
+Invoke-RestMethod -Uri 'http://localhost:8787/api/ai/status' -Method Get | ConvertTo-Json -Depth 5
+
+# Quick chat test
+$body = '{ "prompt": "Hello from test" }'
+Invoke-RestMethod -Uri 'http://localhost:8787/api/ai/chat' -Method Post -ContentType 'application/json' -Body $body -Verbose
+```
+
+5) Run server continuously
+
+Option A — PM2 (recommended)
+```powershell
+# Install PM2
+npm install -g pm2
+
+# Start using ecosystem config included in repo
+cd D:\Network_project\jivan_swad_app\jivan_swad_app\server
+pm2 start ecosystem.config.js
+pm2 save
+
+# Useful PM2 commands
+pm2 status
+pm2 logs jivan-swad-ai-proxy --lines 200
+pm2 restart jivan-swad-ai-proxy
+pm2 stop jivan-swad-ai-proxy
+# To enable startup on reboot follow pm2 startup output
+pm2 startup
+```
+
+Option B — NSSM (Windows service)
+```powershell
+# Run PowerShell as Administrator
+# Adjust node.exe path if necessary
+nssm install jivan-swad-ai-proxy "C:\Program Files\nodejs\node.exe" "D:\Network_project\jivan_swad_app\jivan_swad_app\server\index.js"
+nssm set jivan-swad-ai-proxy AppDirectory "D:\Network_project\jivan_swad_app\jivan_swad_app\server"
+nssm set jivan-swad-ai-proxy Start SERVICE_AUTO_START
+nssm start jivan-swad-ai-proxy
+```
+
+Option C — Docker (optional)
+```dockerfile
+# Dockerfile example (place in server/)
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --production
+COPY . .
+ENV PORT=8787
+EXPOSE 8787
+CMD ["node", "index.js"]
+```
+```powershell
+# Build and run
+docker build -t jivan-swad-ai-proxy ./server
+docker run -d -p 8787:8787 --name jivan-swad-ai-proxy jivan-swad-ai-proxy
+```
+
+6) Flutter & Firebase client setup
+```powershell
+# At project root
+flutter pub get
+
+# If using flutterfire to generate firebase_options.dart:
+npm install -g firebase-tools
+flutter pub add flutterfire_cli
+flutterfire configure
+# Follow prompts to generate lib/firebase_options.dart
+```
+
+7) Android setup & accept licenses (auto-yes)
+```powershell
+# Windows (PowerShell)
+echo y | flutter doctor --android-licenses
+
+# macOS / Linux
+yes | flutter doctor --android-licenses
+
+# Verify
+flutter doctor
+```
+
+8) Emulators and running the app
+```powershell
+# List emulators
+flutter emulators
+# Launch an emulator
+flutter emulators --launch <emulator_id>
+# Run the app on the emulator or device
+flutter run
+```
+
+9) Client proxy URL mapping (in app)
+- Flutter Web: http://localhost:8787/api/ai/chat
+- Android emulator: http://10.0.2.2:8787/api/ai/chat
+- Physical device / iOS simulator: use the host machine IP (e.g., http://192.168.x.y:8787/api/ai/chat)
+
+10) End-to-end test from PowerShell
+```powershell
+# Ensure server running
+Invoke-RestMethod -Uri 'http://localhost:8787/api/ai/status' -Method Get | ConvertTo-Json -Depth 5
+
+# Send a contextual prompt
+$body = '{ "prompt": "Which teas in my catalog are best for mornings?" }'
+Invoke-RestMethod -Uri 'http://localhost:8787/api/ai/chat' -Method Post -ContentType 'application/json' -Body $body -Verbose
+```
+
+11) Troubleshooting quick checks
+- XMLHttpRequest error (browser): ensure web client uses http://localhost:8787 (not 10.0.2.2).
+- TimeoutException: check server logs; increase timeouts if upstream is slow.
+- No server logs: confirm process running (`pm2 status` or `Get-Process node`).
+- Firestore sync missing: ensure `users/<uid>.role` is set to `"customer"`.
+
+12) Useful commands summary
+
+Server / PM2
+```powershell
+cd D:\Network_project\jivan_swad_app\jivan_swad_app\server
+npm install
+node index.js
+pm2 start ecosystem.config.js
+pm2 status
+pm2 logs jivan-swad-ai-proxy --lines 200
+pm2 restart jivan-swad-ai-proxy
+pm2 stop jivan-swad-ai-proxy
+pm2 save
+pm2 startup
+```
+
+Testing endpoints
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:8787/api/ai/status' -Method Get | ConvertTo-Json -Depth 5
+$body = '{ "prompt": "Hello" }'
+Invoke-RestMethod -Uri 'http://localhost:8787/api/ai/chat' -Method Post -ContentType 'application/json' -Body $body -Verbose
+```
+
+Flutter & Android
+```powershell
+flutter pub get
+flutter doctor
+echo y | flutter doctor --android-licenses
+flutter emulators
+flutter emulators --launch <id>
+flutter run
+```
+
+NSSM (Admin)
+```powershell
+nssm install jivan-swad-ai-proxy "C:\Program Files\nodejs\node.exe" "D:\Network_project\jivan_swad_app\jivan_swad_app\server\index.js"
+nssm set jivan-swad-ai-proxy AppDirectory "D:\Network_project\jivan_swad_app\jivan_swad_app\server"
+nssm set jivan-swad-ai-proxy Start SERVICE_AUTO_START
+nssm start jivan-swad-ai-proxy
+```
+
+Docker
+```powershell
+docker build -t jivan-swad-ai-proxy ./server
+docker run -d -p 8787:8787 --name jivan-swad-ai-proxy jivan-swad-ai-proxy
+```
+
+13) Next actions you can ask me to do
+- Generate a markdown version `AI_SETUP.md`.
+- Create `server/run-pm2.ps1` to automate PM2 install/start and `pm2 startup` steps.
+- Create `server/install-nssm.ps1` to automate NSSM service registration (requires Admin rights).
+
+---
+Saved: comprehensive commands.

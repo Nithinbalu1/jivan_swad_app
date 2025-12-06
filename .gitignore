@@ -50,3 +50,6 @@ android/app/google-services.json
 # Optional: ignore duplicate root-level dashboards if present
 lib/admin_dashboard.dart
 lib/customer_dashboard.dart
+
+# Server environment - do not commit real API keys
+server/.env

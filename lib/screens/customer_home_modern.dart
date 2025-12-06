@@ -10,6 +10,7 @@ import 'review_order.dart';
 // keep file removed to avoid unused import
 import 'order_history_screen.dart';
 import 'ai_assistant.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/reward_points.dart';
 import 'package:intl/intl.dart';
 import '../services/app_state.dart';
