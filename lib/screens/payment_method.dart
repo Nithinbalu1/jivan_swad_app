@@ -2,6 +2,61 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// Formatter for phone number: XXX-XXX-XXXX (dashes at 3 and 6)
+/// and hard-limit to 10 digits.
+class PhoneNumberFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.length > 10) {
+      digits = digits.substring(0, 10); // hard stop at 10 digits
+    }
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i == 3 || i == 6) buffer.write('-');
+      buffer.write(digits[i]);
+    }
+
+    final formatted = buffer.toString();
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+/// Formatter for expiry date: MM/YY (slash auto after 2 digits)
+class ExpiryDateFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.length > 4) {
+      digits = digits.substring(0, 4); // max 4 digits
+    }
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i == 2) buffer.write('/');
+      buffer.write(digits[i]);
+    }
+
+    final formatted = buffer.toString();
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
 class PaymentMethodScreen extends StatefulWidget {
   const PaymentMethodScreen({super.key});
 
@@ -69,11 +124,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     }
   }
 
-  // ---- validators (mirror simulator rules for UX) ----
+  // ---- validators ----
   String? _lettersOnly(String? v, {String field = 'This field'}) {
     final s = (v ?? '').trim();
-    if (!RegExp(r'^[A-Za-z ]{2,}$').hasMatch(s))
+    if (!RegExp(r'^[A-Za-z ]{2,}$').hasMatch(s)) {
       return '$field must contain letters and spaces only';
+    }
     return null;
   }
 
@@ -97,7 +153,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   }
 
   String? _cvv(String? v) {
-    if (!RegExp(r'^\d{3,4}$').hasMatch((v ?? '').trim())) return '3–4 digits';
+    if (!RegExp(r'^\d{3,4}$').hasMatch((v ?? '').trim())) {
+      return '3–4 digits';
+    }
     return null;
   }
 
@@ -112,7 +170,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
   String? _phone(String? v) {
     final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
-    if (d.length < 10 || d.length > 15) return 'Phone must be 10–15 digits';
+    if (d.length != 10) {
+      return 'Phone must be 10 digits';
+    }
     return null;
   }
 
@@ -120,27 +180,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     FocusScope.of(context).unfocus();
     if (!_form.currentState!.validate()) return;
 
-    final billing = <String, String>{
-      'fullName': fullNameCtrl.text.trim(),
-      'street': streetCtrl.text.trim(),
-      'apt': aptCtrl.text.trim(),
-      'zip': zipCtrl.text.trim(),
-      'state': stateCtrl.text.trim().toUpperCase(),
-      'city': cityCtrl.text.trim(),
-      'phone': phoneCtrl.text.trim(),
-    };
+    final label = _methodLabel(_selectedMethod);
 
-    Navigator.pop<Map<String, Object?>>(context, {
-      'payment': {
-        'masked': _methodLabel(_selectedMethod),
-        'type': _selectedMethod,
-        'card': cardCtrl.text,
-        'exp': expCtrl.text,
-        'cvv': cvvCtrl.text,
-        'name': nameCtrl.text,
-      },
-      'billing': billing,
-    });
+    // Pop back to the review screen with the label (String)
+    Navigator.pop<String>(context, label);
   }
 
   @override
@@ -159,7 +202,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   child: ChoiceChip(
                     label: const Text('Card'),
                     selected: _selectedMethod == 'card',
-                    onSelected: (_) => setState(() => _selectedMethod = 'card'),
+                    onSelected: (_) =>
+                        setState(() => _selectedMethod = 'card'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -167,7 +211,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   child: ChoiceChip(
                     label: const Text('UPI'),
                     selected: _selectedMethod == 'upi',
-                    onSelected: (_) => setState(() => _selectedMethod = 'upi'),
+                    onSelected: (_) =>
+                        setState(() => _selectedMethod = 'upi'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -187,36 +232,50 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             if (_selectedMethod == 'card') ...[
               TextFormField(
                 controller: cardCtrl,
-                decoration: const InputDecoration(labelText: 'Card number'),
+                decoration: const InputDecoration(
+                  labelText: 'Card number',
+                  counterText: '',
+                ),
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 maxLength: 16,
                 validator: _card16,
               ),
-              Row(children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: expCtrl,
-                    decoration: const InputDecoration(labelText: 'MM/YY'),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[\d/]')),
-                    ],
-                    validator: _exp,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: expCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'MM/YY',
+                        counterText: '',
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        ExpiryDateFormatter(),
+                      ],
+                      maxLength: 5,
+                      validator: _exp,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: cvvCtrl,
-                    decoration: const InputDecoration(labelText: 'CVV'),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    maxLength: 4,
-                    validator: _cvv,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: cvvCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'CVV',
+                        counterText: '',
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      maxLength: 4,
+                      validator: _cvv,
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: nameCtrl,
@@ -225,19 +284,22 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     ? _lettersOnly(v, field: 'Name on card')
                     : null,
               ),
-            ], // End card fields
+            ],
 
             if (_selectedMethod != 'card') ...[
-              // For non-card methods, collect a short identifier (UPI id or wallet id)
               TextFormField(
                 decoration: const InputDecoration(labelText: 'UPI / Wallet ID'),
-                validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+                validator: (v) =>
+                    (v ?? '').trim().isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 12),
             ],
+
             const SizedBox(height: 20),
-            const Text('Billing address',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const Text(
+              'Billing address',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
             TextFormField(
               controller: fullNameCtrl,
@@ -254,28 +316,38 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
               decoration:
                   const InputDecoration(labelText: 'Apt/suite (optional)'),
             ),
-            Row(children: [
-              Expanded(
-                child: TextFormField(
-                  controller: zipCtrl,
-                  decoration: const InputDecoration(labelText: 'Zip code'),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  maxLength: 5,
-                  validator: _zip,
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: zipCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Zip code',
+                      counterText: '',
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    maxLength: 5,
+                    validator: _zip,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: stateCtrl,
-                  decoration: const InputDecoration(labelText: 'State'),
-                  textCapitalization: TextCapitalization.characters,
-                  maxLength: 2,
-                  validator: _state2,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: stateCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'State',
+                      counterText: '',
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                    maxLength: 2,
+                    validator: _state2,
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             TextFormField(
               controller: cityCtrl,
               decoration: const InputDecoration(labelText: 'City'),
@@ -283,9 +355,23 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             ),
             TextFormField(
               controller: phoneCtrl,
-              decoration: const InputDecoration(labelText: 'Phone number'),
+              decoration: const InputDecoration(
+                labelText: 'Phone number',
+                hintText: 'XXX-XXX-XXXX',
+              ),
               keyboardType: TextInputType.phone,
               validator: _phone,
+              inputFormatters: [
+                PhoneNumberFormatter(),
+              ],
+              maxLength: 12, // XXX-XXX-XXXX
+              buildCounter: (
+                _, {
+                required int currentLength,
+                required bool isFocused,
+                required int? maxLength,
+              }) =>
+                  const SizedBox.shrink(),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -301,3 +387,4 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     );
   }
 }
+
