@@ -88,18 +88,6 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
     });
   }
 
-  Widget _paymentIcon(String? type) {
-    if (type == null) return const SizedBox.shrink();
-    final t = type.toLowerCase();
-    if (t.contains('card')) return const Icon(Icons.credit_card, size: 20);
-    if (t.contains('upi'))
-      return const Icon(Icons.account_balance_wallet, size: 20);
-    if (t.contains('wallet'))
-      return const Icon(Icons.account_balance_wallet, size: 20);
-    if (t.contains('paypal')) return const Icon(Icons.payment, size: 20);
-    return const Icon(Icons.payment, size: 20);
-  }
-
   Future<void> _placeOrder() async {
     if (_placing) return;
     setState(() => _placing = true);
@@ -117,61 +105,14 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
 
       if (!mounted) return;
 
-      if (res.success) {
-        // Show a success dialog with transaction id and an action
-        if (!mounted) return;
-        await showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Payment successful'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Transaction: ${res.transactionId}'),
-                const SizedBox(height: 8),
-                Text('Amount: ${_money(netCents)}'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Done'),
-              ),
-            ],
-          ),
-        );
+      final msg = res.success
+          ? 'Authorized • TXN ${res.transactionId}'
+          : 'Declined • ${res.message}';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
-        // After the dialog closes, return success to caller so they can create
-        // the order in Firestore and navigate to order history.
-        if (mounted) Navigator.of(context).pop(true);
-      } else {
-        // Show an error dialog with retry option
-        if (!mounted) return;
-        await showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Payment failed'),
-            content: Text(res.message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _placeOrder(); // retry
-                },
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        );
+      if (res.success) {
+        // Optionally navigate to a success screen
+        // Navigator.pushReplacementNamed(context, '/order_placed');
       }
     } finally {
       if (mounted) setState(() => _placing = false);
@@ -275,18 +216,10 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
                   ])
                 : null,
             onTap: _pickPaymentMethod,
-            child: Row(
-              children: [
-                _paymentIcon(_paymentType),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(_paymentLabel ??
-                      (totalAfterRewards == 0
-                          ? 'No payment required (covered by rewards)'
-                          : 'Tap to add a method')),
-                ),
-              ],
-            ),
+            child: Text(_paymentLabel ??
+                (totalAfterRewards == 0
+                    ? 'No payment required (covered by rewards)'
+                    : 'Tap to add a method')),
           ),
           _Section(
             title: 'Order summary',
@@ -384,3 +317,4 @@ Widget _kv(String k, String v, {bool bold = false}) {
     ),
   );
 }
+
