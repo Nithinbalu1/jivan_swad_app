@@ -119,7 +119,9 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
 
       if (res.success) {
         // Optionally navigate to a success screen
-        // Navigator.pushReplacementNamed(context, '/order_placed');
+        // Return `true` to the caller (e.g., Checkout flow) to indicate
+        // payment succeeded so the caller can continue order placement.
+        if (mounted) Navigator.pop(context, true);
       }
     } finally {
       if (mounted) setState(() => _placing = false);
