@@ -1,3 +1,5 @@
+github repo : https://github.com/Nithinbalu1/jivan_swad_app
+
 # Jivan Swad — Flutter app with AI assistant
 
 Welcome — this repository contains the Jivan Swad Flutter app (a tea catalog and ordering app) and a small Node.js AI proxy server that forwards prompts to an upstream AI provider (OpenAI or Ollama). The proxy keeps API keys off the client and returns assistant replies to the app.
