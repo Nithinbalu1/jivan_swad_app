@@ -49,7 +49,7 @@ class _CustomerHomeState extends State<CustomerHome> {
   }
 
   Future<void> _placeOrder(Map<String, Map<String, dynamic>> teaData,
-      {bool simulate = false}) async {
+      {bool simulate = false, NavigatorState? navigator}) async {
     if (_cart.isEmpty) return;
     final user = _auth.currentUser;
     final items = <Map<String, dynamic>>[];
@@ -69,12 +69,19 @@ class _CustomerHomeState extends State<CustomerHome> {
         setState(() => _cart.clear());
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('order placed ')));
+        // In demo mode also navigate to order history so user sees the result
+        final navToUse = navigator ?? Navigator.of(context);
+        // ignore: avoid_print
+        print('Demo mode: navigating to OrderHistoryScreen');
+        navToUse.pushReplacement(
+          MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+        );
       } else {
         // Estimate wait time and include metadata similar to other flows
         final totalQty = items.fold<int>(0, (s, it) => s + (it['qty'] as int));
         final estMinutes = (10 + (2 * totalQty)).clamp(5, 120);
 
-        await _db.collection('orders').add({
+        final docRef = await _db.collection('orders').add({
           'customerName': user?.email ?? 'Guest',
           'customerId': user?.uid,
           'total': total,
@@ -84,16 +91,31 @@ class _CustomerHomeState extends State<CustomerHome> {
           'items': items,
         });
 
+        // Debug: log the created order id so we can trace in logs
+        // (useful when Firestore rules silently reject writes or succeed)
+        // ignore: avoid_print
+        print('Order created: ${docRef.id}');
+
         if (!mounted) return;
         setState(() => _cart.clear());
 
-        // Navigate to order history so user can see their order and wait time
-        Navigator.pushReplacement(
-          context,
+        // Debug: log before navigating so we can verify navigation intent
+        // ignore: avoid_print
+        print('Navigating to OrderHistoryScreen (replace stack)');
+
+        // Navigate to order history so user can see their order and wait time.
+        // Use pushAndRemoveUntil to ensure a consistent UX even when nested
+        // dialogs or alternative navigator states are in use.
+        final navToUse = navigator ?? Navigator.of(context);
+        navToUse.pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+          (route) => false,
         );
       }
     } catch (e) {
+      // Log full error to console to help debugging
+      // ignore: avoid_print
+      print('Failed to place order: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Failed to place order: $e')));
@@ -589,7 +611,11 @@ class _CustomerHomeState extends State<CustomerHome> {
                             return;
                           }
 
-                          await _placeOrder(teaData, simulate: demoMode);
+                          // Pass the captured navigator so _placeOrder can
+                          // perform navigation on the same navigator used for
+                          // dialog/progress routes.
+                          await _placeOrder(teaData,
+                              simulate: demoMode, navigator: navigator);
                         },
                         child: const Text('Place Order')),
                   ],

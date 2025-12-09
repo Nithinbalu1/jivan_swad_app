@@ -141,9 +141,14 @@ class _CustomerHomeModernState extends State<CustomerHomeModern> {
       // After placing the order, navigate to the order history so the user
       // can see the new order and estimated waiting time.
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
+      // Use pushAndRemoveUntil to ensure the OrderHistoryScreen becomes
+      // the visible route (replace entire stack). This is more robust in
+      // complex navigator/dialog situations.
+      // ignore: avoid_print
+      print('Navigating to OrderHistoryScreen (replace stack)');
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+        (route) => false,
       );
     } catch (e) {
       if (!mounted) return;

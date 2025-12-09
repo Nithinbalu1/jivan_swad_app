@@ -73,18 +73,25 @@ class _ReviewOrderScreenState extends State<ReviewOrderScreen> {
   }
 
   Future<void> _pickPaymentMethod() async {
-    final res = await Navigator.push<Map<String, Object?>>(
+    final res = await Navigator.push<String?>(
       context,
       MaterialPageRoute(builder: (_) => const PaymentMethodScreen()),
     );
     if (res == null) return;
 
-    final payment = (res['payment'] as Map?)?.cast<String, String>();
-
     if (!mounted) return;
     setState(() {
-      _paymentLabel = payment?['masked'];
-      _paymentType = payment?['type'];
+      _paymentLabel = res;
+      final low = res.toLowerCase();
+      if (low.startsWith('card') || low.contains('card')) {
+        _paymentType = 'card';
+      } else if (low.contains('upi')) {
+        _paymentType = 'upi';
+      } else if (low.contains('wallet')) {
+        _paymentType = 'wallet';
+      } else {
+        _paymentType = null;
+      }
     });
   }
 
@@ -317,4 +324,3 @@ Widget _kv(String k, String v, {bool bold = false}) {
     ),
   );
 }
-
