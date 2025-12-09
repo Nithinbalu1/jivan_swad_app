@@ -1,4 +1,4 @@
-// lib/screens/payment_method.dart
+// Payment method input and validation
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -202,8 +202,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   child: ChoiceChip(
                     label: const Text('Card'),
                     selected: _selectedMethod == 'card',
-                    onSelected: (_) =>
-                        setState(() => _selectedMethod = 'card'),
+                    onSelected: (_) => setState(() => _selectedMethod = 'card'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -211,8 +210,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   child: ChoiceChip(
                     label: const Text('UPI'),
                     selected: _selectedMethod == 'upi',
-                    onSelected: (_) =>
-                        setState(() => _selectedMethod = 'upi'),
+                    onSelected: (_) => setState(() => _selectedMethod = 'upi'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -289,8 +287,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             if (_selectedMethod != 'card') ...[
               TextFormField(
                 decoration: const InputDecoration(labelText: 'UPI / Wallet ID'),
-                validator: (v) =>
-                    (v ?? '').trim().isEmpty ? 'Required' : null,
+                validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 12),
             ],
@@ -387,4 +384,3 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     );
   }
 }
-

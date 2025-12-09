@@ -1,4 +1,4 @@
-// lib/screens/review_order.dart
+// Review order screen
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/payment_simulator.dart';

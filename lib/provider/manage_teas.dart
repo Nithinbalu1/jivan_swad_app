@@ -1,4 +1,4 @@
-// lib/provider/manage_teas.dart
+// Provider: manage teas screen
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 

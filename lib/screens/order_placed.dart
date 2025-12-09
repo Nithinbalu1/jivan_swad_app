@@ -1,4 +1,4 @@
-// lib/screens/order_placed.dart
+// Order placed confirmation screen
 import 'package:flutter/material.dart';
 
 class OrderPlacedScreen extends StatelessWidget {

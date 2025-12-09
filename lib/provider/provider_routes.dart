@@ -1,4 +1,4 @@
-// lib/provider/provider_routes.dart
+// Provider route map
 import 'package:flutter/widgets.dart';
 import 'provider_home.dart';
 import 'manage_teas.dart';
